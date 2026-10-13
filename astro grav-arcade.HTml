@@ -1,0 +1,3692 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astro Grav Arcade v9.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            pink: '#ff007f',
+                            cyan: '#00f0ff',
+                            purple: '#9d00ff',
+                            yellow: '#f4ee01',
+                            dark: '#020205'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Press+Start+2P&display=swap');
+        
+body {
+            font-family: 'Orbitron', sans-serif;
+            background-color: #020205;
+            color: #ffffff;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+        }
+
+        .arcade-font {
+            font-family: 'Press Start 2P', monospace;
+        }
+
+        .neon-glitch-title {
+            position: relative;
+            color: #fff;
+            text-shadow: 
+                0 0 5px #ff007f,
+                0 0 10px #ff007f,
+                0 0 20px #00f0ff,
+                0 0 40px #00f0ff,
+                0 0 80px #9d00ff;
+            animation: frantic-flicker 1.5s infinite alternate;
+        }
+
+        @keyframes frantic-flicker {
+            0%, 18%, 22%, 25%, 53%, 57%, 100% {
+                text-shadow: 
+                    0 0 5px #ff007f,
+                    0 0 10px #ff007f,
+                    0 0 20px #00f0ff,
+                    0 0 40px #00f0ff,
+                    0 0 80px #9d00ff;
+                transform: skew(0deg);
+            }
+            20%, 55% {
+                text-shadow: 0 0 2px #fff;
+                transform: skew(-2deg);
+            }
+        }
+
+        .glass-card {
+            background: rgba(10, 10, 30, 0.9);
+            backdrop-filter: blur(16px);
+            border: 2px solid rgba(255, 0, 127, 0.4);
+            box-shadow: 0 0 30px rgba(255, 0, 127, 0.15), inset 0 0 20px rgba(0, 240, 255, 0.05);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(0, 240, 255, 0.9);
+            box-shadow: 0 0 45px rgba(0, 240, 255, 0.6), inset 0 0 30px rgba(255, 0, 127, 0.3);
+            transform: translateY(-4px);
+        }
+
+        .arcade-screen-box {
+            position: relative;
+            width: 100%;
+            max-width: 800px;
+            height: 520px;
+            background: #050811;
+            border: 6px solid #1f2942;
+            border-radius: 20px;
+            box-shadow: 
+                inset 0 0 50px rgba(0, 0, 0, 0.9),
+                0 0 35px rgba(0, 240, 255, 0.25);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .arcade-screen-box::after {
+            content: " ";
+            display: block;
+            position: absolute;
+            top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 40;
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+        }
+
+        #space-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        #loading-screen {
+            position: fixed;
+            inset: 0;
+            background: #020205;
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: opacity 0.8s ease;
+        }
+
+        .among-progress-border {
+            width: 320px;
+            height: 28px;
+            border: 4px solid #00f0ff;
+            background-color: #000000;
+            padding: 2px;
+            box-shadow: 0 0 20px rgba(0, 240, 255, 0.4);
+        }
+
+        #among-progress-fill {
+            width: 0%;
+            height: 100%;
+            background-color: #ff007f;
+            transition: width 0.1s linear;
+        }
+
+        #game-fullscreen-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(2, 2, 5, 0.98);
+            backdrop-filter: blur(20px);
+            z-index: 9998;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0px;
+            overflow: hidden;
+        }
+
+        #vault-gate-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            display: none;
+            pointer-events: none;
+            overflow: hidden; /* Prevent any stripe overflow out of the screen */
+        }
+
+        .gate-panel {
+            position: absolute;
+            top: 0;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(135deg, #0b0f19 0%, #020205 100%);
+            border: 4px solid #00f0ff;
+            box-shadow: inset 0 0 50px rgba(0, 240, 255, 0.3);
+            transition: transform 1.2s cubic-bezier(0.77, 0, 0.175, 1);
+            overflow: hidden; /* Keeps stripes safely locked inside the gate panel */
+        }
+
+        #gate-left {
+            left: 0;
+            border-right: 6px solid #ff007f;
+            transform: translateX(0%);
+        }
+
+        #gate-right {
+            right: 0;
+            border-left: 6px solid #ff007f;
+            transform: translateX(0%);
+        }
+
+        #vault-gate-overlay.opening #gate-left {
+            transform: translateX(-100%);
+        }
+
+        #vault-gate-overlay.opening #gate-right {
+            transform: translateX(100%);
+        }
+
+        .gate-stripe {
+            position: absolute;
+            width: 100%;
+            height: 20px;
+            background: repeating-linear-gradient(45deg, #f4ee01, #f4ee01 15px, #000 15px, #000 30px);
+            opacity: 0.8;
+            left: 0; /* Keeps stripes pinned neatly inside the panel */
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #020205;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #00f0ff;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between selection:bg-cyber-pink selection:text-white">
+
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="relative z-20 flex flex-col items-center text-center p-8 bg-black/80 rounded-3xl border-2 border-cyber-cyan/50 backdrop-blur-md shadow-2xl">
+            <div class="arcade-font text-xl text-cyber-cyan tracking-widest mb-4">ASTRO GRAV ARCADE</div>
+            <div class="among-progress-border mb-4">
+                <div id="among-progress-fill"></div>
+            </div>
+            <div id="loading-percentage" class="arcade-font text-lg text-white">0%</div>
+            <div class="text-xs text-cyber-pink mt-3 tracking-widest uppercase animate-pulse">CALIBRATING GRAVITY FIELDS...</div>
+        </div>
+    </div>
+
+    <!-- Vault Gates Overlay -->
+    <div id="vault-gate-overlay">
+        <div id="gate-left" class="gate-panel flex flex-col justify-between p-8">
+            <div class="gate-stripe"></div>
+            <div class="text-cyber-cyan arcade-font text-xs tracking-widest">SECURE VAULT // LIFTING</div>
+            <div class="gate-stripe"></div>
+        </div>
+        <div id="gate-right" class="gate-panel flex flex-col justify-between p-8">
+            <div class="gate-stripe"></div>
+            <div class="text-cyber-pink arcade-font text-xs tracking-widest text-right">SYSTEM ACCESS GRANTED</div>
+            <div class="gate-stripe"></div>
+        </div>
+    </div>
+
+    <!-- Fullscreen Stage Overlay with Edge-to-Edge Top Bar -->
+    <div id="game-fullscreen-overlay">
+        <div class="w-full bg-[#0b0f19] px-6 py-3 flex justify-between items-center border-b-2 border-cyber-cyan/50 shadow-[0_4px_25px_rgba(0,240,255,0.25)] z-50">
+            <div>
+                <span id="fs-game-title" class="text-sm md:text-base font-black text-cyber-cyan tracking-wider uppercase">SIMULATION ACTIVE</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <button id="fs-reset-btn" onclick="resetCurrentGame()" class="px-4 py-2 rounded-xl bg-cyber-yellow/20 text-cyber-yellow font-black text-xs hover:bg-cyber-yellow hover:text-black transition cursor-pointer flex items-center gap-2 border border-cyber-yellow/40 shadow-[0_0_15px_rgba(244,238,1,0.3)]">
+                    🔄 RESET SIMULATION
+                </button>
+                <button onclick="exitFullscreenGame()" class="px-4 py-2 rounded-xl bg-red-600 text-white font-black text-xs hover:bg-red-500 transition cursor-pointer flex items-center gap-2 shadow-[0_0_15px_rgba(239,68,68,0.6)] border border-red-400">
+                    ✕ RETURN TO LOBBY
+                </button>
+            </div>
+        </div>
+        <div id="fs-game-container" class="flex-grow flex flex-col items-center justify-center w-full relative overflow-hidden bg-[#020205] p-4"></div>
+    </div>
+
+    <canvas id="space-canvas"></canvas>
+
+    <header class="w-full max-w-7xl mx-auto px-4 py-6 flex flex-col md:flex-row items-center justify-between gap-4 z-10">
+        <div class="flex items-center gap-3">
+            <div class="w-4 h-4 bg-cyber-pink rounded-full animate-ping"></div>
+            <span class="text-xs tracking-widest text-cyber-cyan uppercase font-bold">Sector: <span id="sector-coords">99.44° S, 40.12° E</span></span>
+        </div>
+        <div class="flex items-center gap-4">
+            <button id="audio-toggle" onclick="toggleAudio()" class="px-4 py-2 rounded-xl glass-card text-xs text-cyber-yellow hover:bg-yellow-500/10 transition flex items-center gap-2 cursor-pointer">
+                <svg id="audio-icon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                </svg>
+                <span>AUDIO: <span id="audio-status">OFF</span></span>
+            </button>
+            <div class="px-4 py-2 rounded-xl glass-card text-xs text-cyber-pink font-semibold">
+                CREDITS: <span id="global-credits" class="text-white">1000</span> ₳
+            </div>
+        </div>
+    </header>
+
+    <!-- Lobby View -->
+    <main id="lobby-view" class="w-full max-w-6xl mx-auto px-4 py-4 flex-grow z-10 flex flex-col items-center justify-center">
+        <div class="text-center my-6 md:my-10 w-full">
+            <div class="inline-block px-4 py-1 mb-4 rounded-full border border-cyber-pink/50 bg-cyber-pink/10 text-cyber-pink text-xs tracking-widest uppercase animate-pulse">
+                ⚡ LOBBY ACTIVE - SELECT SIMULATION ⚡
+            </div>
+            <h1 class="neon-glitch-title text-4xl sm:text-6xl md:text-8xl font-black tracking-wider uppercase mb-4" data-text="ASTRO GRAV ARCADE">
+                ASTRO GRAV ARCADE
+            </h1>
+            <p class="text-sm sm:text-base text-gray-300 max-w-2xl mx-auto tracking-wide">
+                Classic arcade simulations operating under zero-G anomaly fields inside standard rectangular arcade monitors. Click any module to launch!
+            </p>
+        </div>
+
+        <div id="games-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto pb-16 w-full">
+            <div onclick="launchFullscreenGame(1, 'ZERO-G CHESS')" class="glass-card rounded-3xl p-6 relative group flex flex-col justify-between min-h-[260px]">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 rounded-2xl bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full bg-cyber-pink/20 text-cyber-pink border border-cyber-pink/30 arcade-font">MOD 01</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">ZERO-G CHESS</h3>
+                    <p class="text-xs text-gray-300 mb-3">Enclosed cyber board with multi-level AI difficulty selection (Beginner, Elite, Elite Master, Master, Grand Master) inside a rectangular arcade screen.</p>
+                </div>
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 text-xs">
+                    <span class="text-cyber-cyan font-bold">CLICK TO LAUNCH ➔</span>
+                </div>
+            </div>
+
+            <div onclick="launchFullscreenGame(2, 'EVENT HORIZON PONG')" class="glass-card rounded-3xl p-6 relative group flex flex-col justify-between min-h-[260px]">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 rounded-2xl bg-cyber-pink/10 text-cyber-pink border border-cyber-pink/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full bg-cyber-cyan/20 text-cyber-cyan border border-cyber-cyan/30 arcade-font">MOD 02</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">EVENT HORIZON PONG</h3>
+                    <p class="text-xs text-gray-300 mb-3">Gravitational tennis featuring glitch-free ball physics and AI opponent within a custom rectangular viewport.</p>
+                </div>
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 text-xs">
+                    <span class="text-cyber-pink font-bold">CLICK TO LAUNCH ➔</span>
+                </div>
+            </div>
+
+            <div onclick="launchFullscreenGame(3, 'SINGULARITY CIPHER')" class="glass-card rounded-3xl p-6 relative group flex flex-col justify-between min-h-[260px]">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 rounded-2xl bg-cyber-yellow/10 text-cyber-yellow border border-cyber-yellow/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full bg-cyber-yellow/20 text-cyber-yellow border border-cyber-yellow/30 arcade-font">MOD 03</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">SINGULARITY CIPHER</h3>
+                    <p class="text-xs text-gray-300 mb-3">Authentic original cyber decryption terminal with interactive memory decryption puzzle.</p>
+                </div>
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 text-xs">
+                    <span class="text-cyber-yellow font-bold">CLICK TO LAUNCH ➔</span>
+                </div>
+            </div>
+
+            <div onclick="launchFullscreenGame(4, 'WORMHOLE SNAKE')" class="glass-card rounded-3xl p-6 relative group flex flex-col justify-between min-h-[260px]">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 rounded-2xl bg-cyber-purple/20 text-cyber-purple border border-cyber-purple/40">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full bg-cyber-purple/20 text-cyber-purple border border-cyber-purple/30 arcade-font">MOD 04</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">WORMHOLE SNAKE</h3>
+                    <p class="text-xs text-gray-300 mb-3">5 game modes (Wrap Screen, Solid Box Walls, Obstacle Maze, Speed Hyperdrive, And Void Abyss) contained within a rectangular game screen.</p>
+                </div>
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 text-xs">
+                    <span class="text-cyber-purple font-bold">CLICK TO LAUNCH ➔</span>
+                </div>
+            </div>
+
+            <div onclick="launchFullscreenGame(5, 'QUANTUM MEMORY CORE')" class="glass-card rounded-3xl p-6 relative group flex flex-col justify-between min-h-[260px]">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 rounded-2xl bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full bg-cyber-cyan/20 text-cyber-cyan border border-cyber-cyan/30 arcade-font">MOD 05</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">QUANTUM MEMORY CORE</h3>
+                    <p class="text-xs text-gray-300 mb-3">A 4x4 grid style memory game with space icons. find all 8 pairs in 50 seconds!</p>
+                </div>
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 text-xs">
+                    <span class="text-cyber-cyan font-bold">CLICK TO LAUNCH ➔</span>
+                </div>
+            </div>
+
+            <div onclick="launchFullscreenGame(6, 'GRAV-LIFT DRONE')" class="glass-card rounded-3xl p-6 relative group flex flex-col justify-between min-h-[260px]">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 rounded-2xl bg-cyber-pink/10 text-cyber-pink border border-cyber-pink/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 011 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full bg-cyber-pink/20 text-cyber-pink border border-cyber-pink/30 arcade-font">MOD 06</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">GRAV-LIFT DRONE</h3>
+                    <p class="text-xs text-gray-300 mb-3">High-end classic 2D cyber-tunnel drone pilot simulator with interactive flight mechanics.</p>
+                </div>
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 text-xs">
+                    <span class="text-cyber-pink font-bold">CLICK TO LAUNCH ➔</span>
+                </div>
+            </div>
+
+            <div onclick="launchFullscreenGame(7, 'GRAVITY SPEED CLICKER')" class="glass-card rounded-3xl p-6 relative group flex flex-col justify-between min-h-[260px]">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 rounded-2xl bg-cyber-yellow/10 text-cyber-yellow border border-cyber-yellow/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full bg-cyber-yellow/20 text-cyber-yellow border border-cyber-yellow/30 arcade-font">MOD 07</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">GRAVITY SPEED CLICKER</h3>
+                    <p class="text-xs text-gray-300 mb-3">Tap the pulsing core as fast as you can in 15 seconds, and check your CPS!</p>
+                </div>
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 text-xs">
+                    <span class="text-cyber-yellow font-bold">CLICK TO LAUNCH ➔</span>
+                </div>
+            </div>
+
+            <!-- Game 8 -->
+            <div onclick="launchFullscreenGame(8, 'GEOMETRY DASH MINI')" class="glass-card rounded-3xl p-6 relative group flex flex-col justify-between min-h-[260px]">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 rounded-2xl bg-cyan-400/20 text-cyan-400 border border-cyan-400/40">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full bg-cyan-400/20 text-cyan-400 border border-cyan-400/30 arcade-font">MOD 08</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">GEOMETRY DASH MINI</h3>
+                    <p class="text-xs text-gray-300 mb-3">Your cube turned into a space probe. jump across platform neon spikes to survive the danger, perfect timing is everything.</p>
+                </div>
+                <div class="flex items-center justify-end pt-3 border-t border-white/10 text-xs">
+                    <span class="text-cyan-400 font-bold">CLICK TO LAUNCH ➔</span>
+                </div>
+            </div>
+
+      <!-- Game 9: DINO CORE -->
+            <div onclick="launchFullscreenGame(9, 'DINO CORE ')" class="glass-card rounded-3xl p-6 relative group flex flex-col justify-between md:col-span-2 w-full min-h-[260px]">
+                <div>
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="p-3 rounded-2xl bg-cyber-yellow/10 text-cyber-yellow border border-cyber-yellow/30">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        </div>
+                        <span class="text-xs px-3 py-1 rounded-full bg-emrald/20 text-cyber-yellow border border-cyber-yellow/30 arcade-font">MOD 09 (ULTIMATE)</span>
+                    </div>
+                    <h3 class="text-xl font-bold text-cyber-yellow mb-1">DINO CORE</h3>
+                    <p class="text-xs text-gray-300 mb-3">An Astro-Dino is lost in space. run across the moon surface. dodging space cacti, and flying meteors. it gets faster and faster. how far can you make it in zero gravity.</p>
+                </div>
+                <div class="flex items-center justify-end pt-3 border-t border-cyber-yellow/10 text-xs">
+                    <span class="text-cyber-yellow font-bold">CLICK TO LAUNCH ➔</span>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="w-full text-center py-6 border-t border-white/10 text-xs text-gray-500 z-10">
+        ASTRO GRAV ARCADE v9.1 • ALL RIGHTS RESERVED
+    </footer>
+
+    <script>
+        window.addEventListener('DOMContentLoaded', () => {
+            const fill = document.getElementById('among-progress-fill');
+            const pct = document.getElementById('loading-percentage');
+            const screen = document.getElementById('loading-screen');
+            const gateOverlay = document.getElementById('vault-gate-overlay');
+            let progress = 0;
+
+            const loaderInterval = setInterval(() => {
+                progress += Math.floor(Math.random() * 12) + 5;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(loaderInterval);
+                    
+                    gateOverlay.style.display = 'block';
+
+                    setTimeout(() => {
+                        screen.style.opacity = '0';
+                        setTimeout(() => screen.style.display = 'none', 800);
+
+                        setTimeout(() => {
+                            gateOverlay.classList.add('opening');
+                            setTimeout(() => {
+                                gateOverlay.style.display = 'none';
+                            }, 1200);
+                        }, 200);
+
+                    }, 400);
+                }
+                fill.style.width = progress + '%';
+                pct.innerText = progress + '%';
+            }, 60);
+        });
+
+        const canvas = document.getElementById('space-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, stars = [], asteroids = [];
+
+        function resizeCanvas() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        for(let i=0; i<120; i++) {
+            stars.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: Math.random() * 1.5,
+                alpha: Math.random(),
+                speed: Math.random() * 0.4 + 0.1
+            });
+        }
+
+        for(let i=0; i<18; i++) {
+            asteroids.push({
+                x: Math.random() * width,
+                y: Math.random() * height,
+                radius: Math.random() * 45 + 20,
+                vx: (Math.random() - 0.5) * 4.5,
+                vy: (Math.random() - 0.5) * 4.5,
+                angle: Math.random() * Math.PI,
+                vAngle: (Math.random() - 0.5) * 0.08
+            });
+        }
+
+        function animateBackground() {
+            ctx.clearRect(0, 0, width, height);
+            
+            stars.forEach(s => {
+                s.y += s.speed;
+                if(s.y > height) s.y = 0;
+                ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha})`;
+                ctx.beginPath();
+                ctx.arc(s.x, s.y, s.radius, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            asteroids.forEach(ast => {
+                ast.x += ast.vx;
+                ast.y += ast.vy;
+                ast.angle += ast.vAngle;
+
+                if(ast.x < -100) ast.x = width + 100;
+                if(ast.x > width + 100) ast.x = -100;
+                if(ast.y < -100) ast.y = height + 100;
+                if(ast.y > height + 100) ast.y = -100;
+
+                ctx.save();
+                ctx.translate(ast.x, ast.y);
+                ctx.rotate(ast.angle);
+                ctx.strokeStyle = 'rgba(255, 0, 127, 0.9)';
+                ctx.fillStyle = 'rgba(15, 12, 35, 0.95)';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(0, 0, ast.radius, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.stroke();
+                
+                ctx.fillStyle = 'rgba(0, 240, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(ast.radius * 0.3, -ast.radius * 0.2, ast.radius * 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+            });
+
+            requestAnimationFrame(animateBackground);
+        }
+        animateBackground();
+
+        let audioCtx = null;
+        let audioEnabled = false;
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            document.getElementById('audio-status').innerText = audioEnabled ? 'ON' : 'OFF';
+            if (audioEnabled && !audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            playSound('click');
+        }
+
+        function playSound(type) {
+            if (!audioEnabled || !audioCtx) return;
+            try {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+
+                if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(400, now);
+                    osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.05);
+                    osc.start(now); osc.stop(now + 0.05);
+                } else if (type === 'score') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(523.25, now);
+                    osc.frequency.setValueAtTime(659.25, now + 0.08);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.2);
+                    osc.start(now); osc.stop(now + 0.2);
+                } else if (type === 'hit') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.15);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.15);
+                    osc.start(now); osc.stop(now + 0.15);
+                } else if (type === 'move') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(600, now + 0.08);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.linearRampToValueAtTime(0, now + 0.08);
+                    osc.start(now); osc.stop(now + 0.08);
+                }
+            } catch(e) {}
+        }
+
+        let activeGameInterval = null;
+        let currentGameId = null;
+        let currentGameTitle = '';
+
+        function launchFullscreenGame(id, title) {
+            playSound('click');
+            currentGameId = id;
+            currentGameTitle = title;
+            if(activeGameInterval) clearInterval(activeGameInterval);
+
+            document.getElementById('fs-game-title').innerText = title;
+            const overlay = document.getElementById('game-fullscreen-overlay');
+            overlay.style.display = 'flex';
+
+            renderActiveGame();
+        }
+
+        function resetCurrentGame() {
+            playSound('click');
+            renderActiveGame();
+        }
+
+        function exitFullscreenGame() {
+            playSound('click');
+            if(activeGameInterval) {
+                clearInterval(activeGameInterval);
+                activeGameInterval = null;
+            }
+            window.onkeydown = null;
+            window.onkeyup = null;
+            window.onmousemove = null;
+            window.onmousedown = null;
+            window.onmouseup = null;
+            document.getElementById('game-fullscreen-overlay').style.display = 'none';
+            currentGameId = null;
+        }
+
+        function renderActiveGame() {
+            if(activeGameInterval) {
+                clearInterval(activeGameInterval);
+                activeGameInterval = null;
+            }
+            window.onkeydown = null;
+            window.onkeyup = null;
+            window.onmousemove = null;
+            window.onmousedown = null;
+            window.onmouseup = null;
+            const container = document.getElementById('fs-game-container');
+            container.innerHTML = '';
+
+            const screenShell = document.createElement('div');
+            screenShell.className = 'arcade-screen-box';
+            screenShell.id = 'arcade-screen-inner';
+            container.appendChild(screenShell);
+
+            if (currentGameId === 1) startFullChessGame(screenShell);
+            else if (currentGameId === 2) startPongGame(screenShell);
+            else if (currentGameId === 3) startCipherGame(screenShell);
+            else if (currentGameId === 4) startSnakeMenu(screenShell);
+            else if (currentGameId === 5) startMemoryGame(screenShell);
+            else if (currentGameId === 6) startDroneGame(screenShell);
+            else if (currentGameId === 7) startSpeedClickerGame(screenShell);
+            else if (currentGameId === 8) startGeometryDashGame(screenShell);
+            else if (currentGameId === 9) startDinoRunGame(screenShell);
+        }
+
+        /* --- 9. RUN DINO RUN (SPACE DINOSAUR THEME) --- */
+function startDinoRunGame(container) {
+    container.innerHTML = `
+        <div class="relative flex flex-col items-center justify-center w-full h-full p-2 select-none z-10 rounded-xl overflow-hidden shadow-2xl" style="background: linear-gradient(180deg, #09031d 0%, #140733 60%, #220947 100%);">
+            <div class="flex justify-between w-full max-w-xl mb-2 px-3 text-xs arcade-font text-cyan-300 font-bold">
+                <span>SCORE: <span id="dino-score" class="text-cyan-400">0</span></span>
+                <span class="tracking-widest text-purple-400">SPACE DINO RUN</span>
+                <span>BEST: <span id="dino-best" class="text-purple-300">0</span></span>
+            </div>
+            <div class="relative border-4 border-cyan-500/80 rounded-xl overflow-hidden shadow-[0_0_35px_rgba(6,182,212,0.4)] bg-gradient-to-b from-[#050214] via-[#0d0426] to-[#180838]">
+                <canvas id="dino-canvas" width="650" height="340" class="block cursor-pointer touch-none"></canvas>
+                
+                <!-- Overlay Start / GameOver Screen -->
+                <div id="dino-overlay" class="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center cursor-pointer p-4 text-center">
+                    <h2 class="arcade-font text-3xl md:text-4xl font-black text-cyan-400 drop-shadow-[0_0_15px_rgba(6,182,212,0.8)] mb-2">SPACE DINO RUN</h2>
+                    <p class="arcade-font text-xs text-purple-300 tracking-wider mb-6 animate-bounce">TAP / SPACE / CLICK TO JUMP</p>
+                    <button class="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black arcade-font text-xs rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.6)] border-2 border-white cursor-pointer transition">
+                        LAUNCH DINO 🦖
+                    </button>
+                </div>
+            </div>
+            <div class="text-[10px] text-cyan-400/80 mt-2 arcade-font tracking-widest font-bold">WATCH OUT FOR CLOSE SPACE CACTI & METEORS!</div>
+        </div>
+    `;
+
+    const canvas = document.getElementById('dino-canvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('dino-overlay');
+    const scoreEl = document.getElementById('dino-score');
+    const bestEl = document.getElementById('dino-best');
+
+    let bestScore = localStorage.getItem('astro_space_dino_best') || 0;
+    bestEl.innerText = bestScore;
+
+    let isRunning = false;
+    let score = 0;
+    let speed = 5.5;
+    let groundY = 270;
+
+    let dino = {
+        x: 80,
+        y: groundY - 45,
+        w: 44,
+        h: 45,
+        vy: 0,
+        gravity: 0.75,
+        jumpPower: -12.8,
+        isGrounded: true
+    };
+
+    let obstacles = [];
+    let stars = [];
+    let frameCount = 0;
+
+    // Initialize Starfield
+    for (let i = 0; i < 50; i++) {
+        stars.push({
+            x: Math.random() * canvas.width,
+            y: Math.random() * (groundY - 20),
+            size: Math.random() * 2 + 1,
+            speed: 0.2 + Math.random() * 0.5,
+            alpha: Math.random()
+        });
+    }
+
+    function jump() {
+        if (!isRunning) {
+            startLoop();
+            return;
+        }
+        if (dino.isGrounded) {
+            dino.vy = dino.jumpPower;
+            dino.isGrounded = false;
+            if (typeof playSound === 'function') playSound('click');
+        }
+    }
+
+    window.onkeydown = (e) => {
+        if (e.key === ' ' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            jump();
+        }
+    };
+    canvas.onclick = jump;
+    overlay.onclick = jump;
+
+    function startLoop() {
+        overlay.style.display = 'none';
+        isRunning = true;
+        score = 0;
+        speed = 5.5;
+        obstacles = [];
+        dino.y = groundY - dino.h;
+        dino.vy = 0;
+        dino.isGrounded = true;
+
+        if (window.activeGameInterval) clearInterval(window.activeGameInterval);
+
+        window.activeGameInterval = setInterval(() => {
+            frameCount++;
+            score += 1;
+            scoreEl.innerText = Math.floor(score / 5);
+
+            if (Math.floor(score / 5) > bestScore) {
+                bestScore = Math.floor(score / 5);
+                bestEl.innerText = bestScore;
+                localStorage.setItem('astro_space_dino_best', bestScore);
+            }
+
+            speed = 5.5 + Math.min(6.5, score * 0.003);
+
+            // Dino Physics
+            dino.vy += dino.gravity;
+            dino.y += dino.vy;
+            if (dino.y >= groundY - dino.h) {
+                dino.y = groundY - dino.h;
+                dino.vy = 0;
+                dino.isGrounded = true;
+            }
+
+            // Star Movement
+            stars.forEach(s => {
+                s.x -= s.speed;
+                if (s.x < 0) s.x = canvas.width;
+            });
+
+            // Spawn Obstacles Closer Together (Lower frame intervals)
+            if (frameCount % Math.max(30, 60 - Math.floor(score * 0.02)) === 0) {
+                let rand = Math.random();
+                if (rand > 0.4) {
+                    // Space Crystal Cactus
+                    obstacles.push({
+                        x: canvas.width + 20,
+                        y: groundY - 42,
+                        w: 26,
+                        h: 42,
+                        type: 'space_cactus'
+                    });
+                } else {
+                    // Meteor
+                    obstacles.push({
+                        x: canvas.width + 20,
+                        y: groundY - 80 - Math.random() * 40,
+                        w: 32,
+                        h: 28,
+                        type: 'meteor',
+                        angle: Math.random() * Math.PI
+                    });
+                }
+            }
+
+            // Update & Collision Check
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.x -= speed;
+
+                let padding = 6;
+                if (
+                    dino.x + padding < obs.x + obs.w - padding &&
+                    dino.x + dino.w - padding > obs.x + padding &&
+                    dino.y + padding < obs.y + obs.h - padding &&
+                    dino.y + dino.h - padding > obs.y + padding
+                ) {
+                    gameOver();
+                    return;
+                }
+
+                if (obs.x + obs.w < -20) {
+                    obstacles.splice(i, 1);
+                }
+            }
+
+            // Drawing Scene
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background Distant Planet
+            ctx.fillStyle = 'rgba(126, 34, 206, 0.2)';
+            ctx.beginPath();
+            ctx.arc(520, 90, 60, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Stars
+            stars.forEach(s => {
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.4 + Math.sin(frameCount * 0.1 + s.x) * 0.4})`;
+                ctx.fillRect(s.x, s.y, s.size, s.size);
+            });
+
+            // Ground Surface
+            ctx.fillStyle = '#0f0524';
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+            ctx.strokeStyle = '#06b6d4';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, groundY);
+            ctx.lineTo(canvas.width, groundY);
+            ctx.stroke();
+
+            // Draw Obstacles
+            obstacles.forEach(obs => {
+                if (obs.type === 'space_cactus') {
+                    ctx.fillStyle = '#a855f7';
+                    ctx.fillRect(obs.x + 9, obs.y, 8, obs.h);
+                    ctx.fillRect(obs.x + 2, obs.y + 12, 8, 14);
+                    ctx.fillRect(obs.x + 16, obs.y + 16, 8, 14);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fillRect(obs.x + 9, obs.y, 8, 4);
+                } else {
+                    obs.angle += 0.1;
+                    ctx.fillStyle = '#f97316';
+                    ctx.beginPath();
+                    ctx.arc(obs.x + 16, obs.y + 14, 14, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = '#ea580c';
+                    ctx.fillRect(obs.x + 6, obs.y + 6, 20, 16);
+                }
+            });
+
+            // --- PROPER PIXELATED SPACE DINO DRAWING ---
+            ctx.fillStyle = '#22d3ee'; // Neon Cyan Dino
+
+            // Tail
+            ctx.fillRect(dino.x, dino.y + 18, 10, 8);
+            ctx.fillRect(dino.x + 4, dino.y + 24, 6, 6);
+
+            // Main Body
+            ctx.fillRect(dino.x + 10, dino.y + 14, 20, 20);
+
+            // Back Spines / Plates
+            ctx.fillStyle = '#a855f7';
+            ctx.fillRect(dino.x + 12, dino.y + 8, 4, 6);
+            ctx.fillRect(dino.x + 20, dino.y + 8, 4, 6);
+
+            // Neck & Head
+            ctx.fillStyle = '#22d3ee';
+            ctx.fillRect(dino.x + 24, dino.y + 4, 14, 14);
+            // Snout
+            ctx.fillRect(dino.x + 34, dino.y + 8, 6, 8);
+
+            // Glowing Cyber Eye
+            ctx.fillStyle = '#ec4899';
+            ctx.fillRect(dino.x + 30, dino.y + 6, 4, 4);
+
+            // Tiny Front Arm
+            ctx.fillStyle = '#0891b2';
+            ctx.fillRect(dino.x + 26, dino.y + 18, 6, 4);
+
+            // Running Legs with Animation
+            let legOffset = Math.sin(frameCount * 0.35) * 6;
+            if (dino.isGrounded) {
+                ctx.fillRect(dino.x + 12, dino.y + 34, 6, 10 + legOffset);
+                ctx.fillRect(dino.x + 22, dino.y + 34, 6, 10 - legOffset);
+            } else {
+                // Tucked legs while jumping
+                ctx.fillRect(dino.x + 10, dino.y + 34, 8, 6);
+                ctx.fillRect(dino.x + 22, dino.y + 34, 8, 6);
+            }
+
+        }, 1000 / 60);
+    }
+
+    function gameOver() {
+        isRunning = false;
+        clearInterval(window.activeGameInterval);
+        if (typeof playSound === 'function') playSound('hit');
+
+        overlay.innerHTML = `
+            <h2 class="arcade-font text-2xl md:text-3xl font-black text-rose-500 drop-shadow-[0_0_15px_rgba(244,63,94,0.8)] mb-2">MISSION FAILED</h2>
+            <p class="arcade-font text-xs text-cyan-200 mb-6">DISTANCE: <span class="text-cyan-400 font-bold">${Math.floor(score / 5)}M</span></p>
+            <button class="px-6 py-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black arcade-font text-xs rounded-xl shadow-[0_0_20px_rgba(6,182,212,0.6)] border-2 border-white cursor-pointer transition">
+                RETRY MISSION 🦖
+            </button>
+        `;
+        overlay.style.display = 'flex';
+    }
+}
+
+        /* --- 1. ZERO-G CHESS --- */
+        if (typeof chessBoard === 'undefined') {
+            var chessBoard = [];
+            var chessTurn = 'w';
+            var chessSelected = null;
+            var chessGameOver = false;
+            var chessDifficulty = 1;
+            var whiteKingMoved = false;
+            var whiteRookA1Moved = false;
+            var whiteRookH1Moved = false;
+            var blackKingMoved = false;
+            var blackRookA8Moved = false;
+            var blackRookH8Moved = false;
+            var pendingPromotion = null;
+            var isPieceAnimating = false;
+        }
+
+        function startFullChessGame(container) {
+            container.innerHTML = `
+                <div id="chess-wrapper" class="relative flex flex-col items-center justify-center w-full h-full p-2 select-none z-10 rounded-xl overflow-hidden shadow-2xl border border-cyan-500/40 transition-all duration-500">
+                    <div class="absolute inset-0 opacity-30 pointer-events-none" style="background-image: radial-gradient(#00f0ff 1px, transparent 1px); background-size: 28px 28px;"></div>
+                    <div class="relative z-10 flex items-center justify-between w-full max-w-md mb-2 px-2">
+                        <div id="chess-status" class="text-xs text-cyan-400 font-mono tracking-wider drop-shadow-[0_0_8px_rgba(34,211,238,0.6)]">WHITE TURN</div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-gray-300 font-mono">AI MODE:</span>
+                            <select id="chess-diff-select" onchange="changeChessDiff(this.value)" class="bg-[#0b0f19] text-yellow-400 text-xs border border-yellow-500/40 rounded px-2 py-1 outline-none cursor-pointer font-mono shadow-md">
+                                <option value="1" ${chessDifficulty==1?'selected':''}>1. BEGINNER</option>
+                                <option value="2" ${chessDifficulty==2?'selected':''}>2. ELITE</option>
+                                <option value="3" ${chessDifficulty==3?'selected':''}>3. ELITE MASTER</option>
+                                <option value="4" ${chessDifficulty==4?'selected':''}>4. MASTER</option>
+                                <option value="5" ${chessDifficulty==5?'selected':''}>5. GRAND MASTER</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="relative z-10 p-2 bg-[#02050e]/80 backdrop-blur-md rounded-xl border border-cyan-500/50 shadow-2xl">
+                        <div id="chess-grid" class="grid grid-cols-8 mx-auto border-2 border-cyan-500/60 bg-black/60 rounded-lg overflow-hidden shadow-inner relative"></div>
+                        <div id="chess-promotion-modal" class="absolute inset-0 bg-black/90 backdrop-blur-md rounded-xl flex flex-col items-center justify-center hidden z-50">
+                            <h2 class="text-lg font-black text-cyan-400 mb-3 font-mono drop-shadow-[0_0_10px_rgba(34,211,238,0.8)]">PROMOTE PAWN</h2>
+                            <div class="flex gap-3">
+                                <button onclick="promotePawn('q')" class="w-12 h-12 bg-gray-800 hover:bg-cyan-500/30 border border-cyan-400 text-2xl rounded-lg text-cyan-300 flex items-center justify-center transition cursor-pointer">♕</button>
+                                <button onclick="promotePawn('r')" class="w-12 h-12 bg-gray-800 hover:bg-cyan-500/30 border border-cyan-400 text-2xl rounded-lg text-cyan-300 flex items-center justify-center transition cursor-pointer">♖</button>
+                                <button onclick="promotePawn('b')" class="w-12 h-12 bg-gray-800 hover:bg-cyan-500/30 border border-cyan-400 text-2xl rounded-lg text-cyan-300 flex items-center justify-center transition cursor-pointer">♗</button>
+                                <button onclick="promotePawn('n')" class="w-12 h-12 bg-gray-800 hover:bg-cyan-500/30 border border-cyan-400 text-2xl rounded-lg text-cyan-300 flex items-center justify-center transition cursor-pointer">♘</button>
+                            </div>
+                        </div>
+                        <div id="chess-game-over" class="absolute inset-0 bg-black/90 backdrop-blur-md rounded-xl flex flex-col items-center justify-center hidden z-50">
+                            <h2 class="text-xl font-black text-pink-500 mb-2 drop-shadow-[0_0_12px_rgba(244,63,94,0.8)]">GAME OVER</h2>
+                            <p id="chess-winner-text" class="text-white text-xs mb-4 text-center px-4 font-mono">Checkmate</p>
+                            <button onclick="resetChessGame()" class="px-5 py-2.5 bg-cyan-400 hover:bg-white text-black font-black text-xs rounded-xl cursor-pointer transition shadow-lg shadow-cyan-500/50">PLAY AGAIN</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            initChessBoard();
+            updateSpaceThemeBackground();
+            renderChessBoard();
+        }
+
+        function changeChessDiff(val) {
+            chessDifficulty = parseInt(val);
+            updateSpaceThemeBackground();
+            if (typeof playSound === 'function') playSound('click');
+        }
+
+        function updateSpaceThemeBackground() {
+            const wrapper = document.getElementById('chess-wrapper');
+            if(!wrapper) return;
+            const themes = {
+                1: 'radial-gradient(circle at 50% 30%, #0d1117 0%, #05070b 70%, #000000 100%)',
+                2: 'radial-gradient(circle at 50% 30%, #1a0b2e 0%, #0b0514 70%, #000000 100%)',
+                3: 'radial-gradient(circle at 50% 30%, #06261f 0%, #020d0b 70%, #000000 100%)',
+                4: 'radial-gradient(circle at 50% 30%, #2e0b0b 0%, #140505 70%, #000000 100%)',
+                5: 'radial-gradient(circle at 50% 30%, #3d1c02 0%, #1c0c01 70%, #000000 100%)'
+            };
+            wrapper.style.background = themes[chessDifficulty] || themes[1];
+        }
+
+        function initChessBoard() {
+            chessTurn = 'w';
+            chessSelected = null;
+            chessGameOver = false;
+            whiteKingMoved = false;
+            whiteRookA1Moved = false;
+            whiteRookH1Moved = false;
+            blackKingMoved = false;
+            blackRookA8Moved = false;
+            blackRookH8Moved = false;
+            pendingPromotion = null;
+            isPieceAnimating = false;
+            chessBoard = [
+                ['r','n','b','q','k','b','n','r'],
+                ['p','p','p','p','p','p','p','p'],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['','','','','','','',''],
+                ['P','P','P','P','P','P','P','P'],
+                ['R','N','B','Q','K','B','N','R']
+            ];
+        }
+
+        function resetChessGame() {
+            initChessBoard();
+            const gameOverEl = document.getElementById('chess-game-over');
+            const promoEl = document.getElementById('chess-promotion-modal');
+            if (gameOverEl) gameOverEl.classList.add('hidden');
+            if (promoEl) promoEl.classList.add('hidden');
+            renderChessBoard();
+            if (typeof playSound === 'function') playSound('click');
+        }
+
+        function getPieceSymbol(p) {
+            const symbols = {
+                'P': '♙', 'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔',
+                'p': '♟', 'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚'
+            };
+            return symbols[p] || '';
+        }
+
+        function findKing(color, board) {
+            const kingChar = color === 'w' ? 'K' : 'k';
+            for(let r=0; r<8; r++) {
+                for(let c=0; c<8; c++) {
+                    if(board[r][c] === kingChar) return {r, c};
+                }
+            }
+            return null;
+        }
+
+        function isSquareAttacked(r, c, byColor, board) {
+            for(let sr=0; sr<8; sr++) {
+                for(let sc=0; sc<8; sc++) {
+                    const piece = board[sr][sc];
+                    if(piece && ((byColor === 'w' && piece === piece.toUpperCase()) || (byColor === 'b' && piece === piece.toLowerCase()))) {
+                        if(isValidMoveRaw(sr, sc, r, c, board)) return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function isValidMoveRaw(sr, sc, tr, tc, board) {
+            const piece = board[sr][sc];
+            const target = board[tr][tc];
+            if(!piece) return false;
+            if(target && ((piece === piece.toUpperCase() && target === target.toUpperCase()) ||
+                        (piece === piece.toLowerCase() && target === target.toLowerCase()))) {
+                return false;
+            }
+
+            const p = piece.toLowerCase();
+            const dr = tr - sr;
+            const dc = tc - sc;
+            const absDr = Math.abs(dr);
+            const absDc = Math.abs(dc);
+
+            if(p === 'p') {
+                const dir = piece === 'P' ? -1 : 1;
+                const startRow = piece === 'P' ? 6 : 1;
+                if(dc === 0 && dr === dir && !target) return true;
+                if(dc === 0 && dr === dir * 2 && sr === startRow && !target && !board[sr + dir][sc]) return true;
+                if(absDc === 1 && dr === dir && target) return true;
+                return false;
+            } else if(p === 'r') {
+                if(dr !== 0 && dc !== 0) return false;
+                return isPathClear(sr, sc, tr, tc, board);
+            } else if(p === 'n') {
+                return (absDr === 2 && absDc === 1) || (absDr === 1 && absDc === 2);
+            } else if(p === 'b') {
+                if(absDr !== absDc) return false;
+                return isPathClear(sr, sc, tr, tc, board);
+            } else if(p === 'q') {
+                if(dr !== 0 && dc !== 0 && absDr !== absDc) return false;
+                return isPathClear(sr, sc, tr, tc, board);
+            } else if(p === 'k') {
+                if(absDr <= 1 && absDc <= 1) return true;
+                if(dr === 0 && absDc === 2) {
+                    const isWhite = piece === 'K';
+                    const enemyColor = isWhite ? 'b' : 'w';
+                    if(isSquareAttacked(sr, sc, enemyColor, board)) return false;
+                    if(dc === 2) {
+                        if(isWhite && (whiteKingMoved || whiteRookH1Moved)) return false;
+                        if(!isWhite && (blackKingMoved || blackRookH8Moved)) return false;
+                        if(board[sr][5] !== '' || board[sr][6] !== '') return false;
+                        if(isSquareAttacked(sr, 5, enemyColor, board) || isSquareAttacked(sr, 6, enemyColor, board)) return false;
+                        return true;
+                    } else if(dc === -2) {
+                        if(isWhite && (whiteKingMoved || whiteRookA1Moved)) return false;
+                        if(!isWhite && (blackKingMoved || blackRookA8Moved)) return false;
+                        if(board[sr][1] !== '' || board[sr][2] !== '' || board[sr][3] !== '') return false;
+                        if(isSquareAttacked(sr, 3, enemyColor, board) || isSquareAttacked(sr, 2, enemyColor, board)) return false;
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function isValidMove(sr, sc, tr, tc, board) {
+            if (!isValidMoveRaw(sr, sc, tr, tc, board)) return false;
+            const piece = board[sr][sc];
+            const target = board[tr][tc];
+            const color = piece === piece.toUpperCase() ? 'w' : 'b';
+
+            board[tr][tc] = piece;
+            board[sr][sc] = '';
+            if (piece.toLowerCase() === 'k' && Math.abs(tc - sc) === 2) {
+                const rookCol = tc > sc ? 7 : 0;
+                const newRookCol = tc > sc ? 5 : 3;
+                board[tr][newRookCol] = board[tr][rookCol];
+                board[tr][rookCol] = '';
+            }
+
+            const kingPos = findKing(color, board);
+            const inCheck = kingPos ? isSquareAttacked(kingPos.r, kingPos.c, color === 'w' ? 'b' : 'w', board) : false;
+            initChessBoardStateCopy(board, sr, sc, tr, tc, piece, target);
+            return !inCheck;
+        }
+
+        function initChessBoardStateCopy(board, sr, sc, tr, tc, piece, target) {
+            board[sr][sc] = piece;
+            board[tr][tc] = target;
+            if (piece.toLowerCase() === 'k' && Math.abs(tc - sc) === 2) {
+                const rookCol = tc > sc ? 7 : 0;
+                const newRookCol = tc > sc ? 5 : 3;
+                board[tr][rookCol] = board[tr][newRookCol];
+                board[tr][newRookCol] = '';
+            }
+        }
+
+        function isPathClear(sr, sc, tr, tc, board) {
+            const stepR = Math.sign(tr - sr);
+            const stepC = Math.sign(tc - sc);
+            let currR = sr + stepR;
+            let currC = sc + stepC;
+            while(currR !== tr || currC !== tc) {
+                if(board[currR][currC] !== '') return false;
+                currR += stepR;
+                currC += stepC;
+            }
+            return true;
+        }
+
+        function renderChessBoard() {
+            const grid = document.getElementById('chess-grid');
+            if(!grid) return;
+            grid.innerHTML = '';
+            
+            const whiteKingPos = findKing('w', chessBoard);
+            const blackKingPos = findKing('b', chessBoard);
+            const whiteInCheck = whiteKingPos ? isSquareAttacked(whiteKingPos.r, whiteKingPos.c, 'b', chessBoard) : false;
+            const blackInCheck = blackKingPos ? isSquareAttacked(blackKingPos.r, blackKingPos.c, 'w', chessBoard) : false;
+
+            const statusEl = document.getElementById('chess-status');
+            if (statusEl && !chessGameOver) {
+                if (chessTurn === 'w') {
+                    statusEl.innerText = whiteInCheck ? 'WHITE TURN - CHECK!' : 'WHITE TURN (YOUR MOVE)';
+                    statusEl.className = whiteInCheck ? 'text-xs text-pink-500 font-mono tracking-wider animate-pulse' : 'text-xs text-cyan-400 font-mono tracking-wider';
+                } else {
+                    statusEl.innerText = blackInCheck ? 'BLACK (AI) - CHECK!' : 'BLACK (AI) THINKING...';
+                    statusEl.className = blackInCheck ? 'text-xs text-pink-500 font-mono tracking-wider animate-pulse' : 'text-xs text-cyan-400 font-mono tracking-wider';
+                }
+            }
+
+            for(let r=0; r<8; r++) {
+                for(let c=0; c<8; c++) {
+                    const sq = document.createElement('div');
+                    const isDark = (r + c) % 2 === 1;
+                    
+                    sq.className = `w-10 h-10 md:w-12 md:h-12 flex items-center justify-center text-2xl md:text-3xl cursor-pointer transition-colors duration-150 relative border border-cyan-500/20 hover:border-cyan-400 ${
+                        isDark ? 'bg-[#0f172a]' : 'bg-[#1e293b]'
+                    }`;
+                    sq.dataset.row = r;
+                    sq.dataset.col = c;
+                    
+                    const piece = chessBoard[r][c];
+                    if(piece) {
+                        const pieceEl = document.createElement('span');
+                        pieceEl.innerText = getPieceSymbol(piece);
+                        pieceEl.style.color = piece === piece.toUpperCase() ? '#00f0ff' : '#ff007f';
+                        pieceEl.className = 'transition-transform duration-300 ease-out select-none';
+                        sq.appendChild(pieceEl);
+                    }
+
+                    if(chessSelected && chessSelected.r === r && chessSelected.c === c) {
+                        sq.classList.add('ring-2', 'ring-yellow-400', 'bg-yellow-500/30', 'z-10');
+                    }
+
+                    if(chessSelected && isValidMove(chessSelected.r, chessSelected.c, r, c, chessBoard)) {
+                        const indicator = document.createElement('div');
+                        indicator.className = piece 
+                            ? 'absolute inset-0 bg-pink-600/40 border-2 border-pink-500 rounded animate-pulse z-10' 
+                            : 'absolute inset-0 bg-cyan-400/30 border border-cyan-300 rounded z-10';
+                        sq.appendChild(indicator);
+                    }
+
+                    if(whiteInCheck && whiteKingPos && whiteKingPos.r === r && whiteKingPos.c === c) {
+                        sq.classList.add('bg-pink-600/60', 'ring-2', 'ring-pink-400', 'animate-pulse');
+                    }
+                    if(blackInCheck && blackKingPos && blackKingPos.r === r && blackKingPos.c === c) {
+                        sq.classList.add('bg-pink-600/60', 'ring-2', 'ring-pink-400', 'animate-pulse');
+                    }
+
+                    sq.onclick = () => handleChessSquareClick(r, c);
+                    grid.appendChild(sq);
+                }
+            }
+        }
+
+        function animatePieceMove(sr, sc, tr, tc, callback) {
+            const grid = document.getElementById('chess-grid');
+            if (!grid) { callback(); return; }
+
+            const fromSq = grid.children[sr * 8 + sc];
+            const toSq = grid.children[tr * 8 + tc];
+            const movingPieceEl = fromSq ? fromSq.querySelector('span') : null;
+
+            if (!movingPieceEl || !fromSq || !toSq) {
+                callback();
+                return;
+            }
+
+            isPieceAnimating = true;
+            const fromRect = fromSq.getBoundingClientRect();
+            const toRect = toSq.getBoundingClientRect();
+            const dx = toRect.left - fromRect.left;
+            const dy = toRect.top - fromRect.top;
+
+            movingPieceEl.style.position = 'absolute';
+            movingPieceEl.style.zIndex = '100';
+            movingPieceEl.style.transform = `translate(${dx}px, ${dy}px)`;
+            movingPieceEl.style.transition = 'transform 0.22s cubic-bezier(0.4, 0, 0.2, 1)';
+
+            setTimeout(() => {
+                movingPieceEl.style.position = '';
+                movingPieceEl.style.zIndex = '';
+                movingPieceEl.style.transform = '';
+                movingPieceEl.style.transition = '';
+                isPieceAnimating = false;
+                callback();
+            }, 220);
+        }
+
+        function handleChessSquareClick(r, c) {
+            if(chessGameOver || chessTurn !== 'w' || pendingPromotion || isPieceAnimating) return;
+
+            const piece = chessBoard[r][c];
+            if(chessSelected) {
+                if(chessSelected.r === r && chessSelected.c === c) {
+                    chessSelected = null;
+                } else if(piece && piece === piece.toUpperCase()) {
+                    chessSelected = {r, c};
+                    if (typeof playSound === 'function') playSound('click');
+                } else {
+                    if(isValidMove(chessSelected.r, chessSelected.c, r, c, chessBoard)) {
+                        let sr = chessSelected.r, sc = chessSelected.c;
+                        chessSelected = null;
+                        
+                        animatePieceMove(sr, sc, r, c, () => {
+                            executeChessMove(sr, sc, r, c);
+                            renderChessBoard();
+
+                            if(!chessGameOver && !pendingPromotion) {
+                                chessTurn = 'b';
+                                let aiMoves = getAllLegalMoves('b', chessBoard);
+                                if(aiMoves.length === 0) {
+                                    const blackKing = findKing('b', chessBoard);
+                                    const isCheck = blackKing ? isSquareAttacked(blackKing.r, blackKing.c, 'w', chessBoard) : false;
+                                    if(isCheck) {
+                                        endChessGame('CHECKMATE! WHITE WARS VICTORY!');
+                                    } else {
+                                        endChessGame('STALEMATE! DRAW GAME.');
+                                    }
+                                    return;
+                                }
+                                setTimeout(aiChessMove, 350);
+                            }
+                        });
+                        return;
+                    } else {
+                        if (typeof playSound === 'function') playSound('hit');
+                    }
+                }
+            } else {
+                if(piece && piece === piece.toUpperCase()) {
+                    chessSelected = {r, c};
+                    if (typeof playSound === 'function') playSound('click');
+                }
+            }
+            renderChessBoard();
+        }
+
+        function executeChessMove(sr, sc, tr, tc) {
+            const piece = chessBoard[sr][sc];
+            if (piece === 'K') whiteKingMoved = true;
+            if (piece === 'k') blackKingMoved = true;
+            if (sr === 7 && sc === 0) whiteRookA1Moved = true;
+            if (sr === 7 && sc === 7) whiteRookH1Moved = true;
+            if (sr === 0 && sc === 0) blackRookA8Moved = true;
+            if (sr === 0 && sc === 7) blackRookH8Moved = true;
+
+            if (piece.toLowerCase() === 'k' && Math.abs(tc - sc) === 2) {
+                const rookCol = tc > sc ? 7 : 0;
+                const newRookCol = tc > sc ? 5 : 3;
+                chessBoard[tr][newRookCol] = chessBoard[tr][rookCol];
+                chessBoard[tr][rookCol] = '';
+            }
+
+            chessBoard[tr][tc] = piece;
+            chessBoard[sr][sc] = '';
+            if (typeof playSound === 'function') playSound('move');
+
+            if (piece === 'P' && tr === 0) {
+                pendingPromotion = { r: tr, c: tc, color: 'w' };
+                document.getElementById('chess-promotion-modal').classList.remove('hidden');
+                return;
+            }
+            if (piece === 'p' && tr === 7) {
+                pendingPromotion = { r: tr, c: tc, color: 'b' };
+                promotePawn('q');
+                return;
+            }
+        }
+
+        function promotePawn(choice) {
+            if (!pendingPromotion) return;
+            const { r, c, color } = pendingPromotion;
+            const actualChoice = color === 'w' ? choice.toUpperCase() : choice.toLowerCase();
+            chessBoard[r][c] = actualChoice;
+            
+            pendingPromotion = null;
+            const promoEl = document.getElementById('chess-promotion-modal');
+            if (promoEl) promoEl.classList.add('hidden');
+            renderChessBoard();
+
+            if (color === 'w' && !chessGameOver) {
+                chessTurn = 'b';
+                let aiMoves = getAllLegalMoves('b', chessBoard);
+                if(aiMoves.length === 0) {
+                    const blackKing = findKing('b', chessBoard);
+                    const isCheck = blackKing ? isSquareAttacked(blackKing.r, blackKing.c, 'w', chessBoard) : false;
+                    if(isCheck) {
+                        endChessGame('CHECKMATE! WHITE WARS VICTORY!');
+                    } else {
+                        endChessGame('STALEMATE! DRAW GAME.');
+                    }
+                    return;
+                }
+                setTimeout(aiChessMove, 350);
+            }
+        }
+
+        function endChessGame(msg) {
+            chessGameOver = true;
+            if (typeof playSound === 'function') playSound('score');
+            const el = document.getElementById('chess-game-over');
+            const winnerText = document.getElementById('chess-winner-text');
+            if (winnerText) winnerText.innerText = msg;
+            if (el) el.classList.remove('hidden');
+        }
+
+        function evaluateBoard(board) {
+            let score = 0;
+            const values = { p: 10, n: 35, b: 35, r: 55, q: 100, k: 1000 };
+            for(let r=0; r<8; r++) {
+                for(let c=0; c<8; c++) {
+                    const p = board[r][c];
+                    if(!p) continue;
+                    const val = values[p.toLowerCase()] || 0;
+                    if(p === p.toLowerCase()) {
+                        score += val;
+                        if((r === 3 || r === 4) && (c === 3 || c === 4)) score += 8;
+                    } else {
+                        score -= val;
+                        if((r === 3 || r === 4) && (c === 3 || c === 4)) score -= 8;
+                    }
+                }
+            }
+            return score;
+        }
+
+        function getAllLegalMoves(color, board) {
+            let moves = [];
+            for(let r=0; r<8; r++) {
+                for(let c=0; c<8; c++) {
+                    const p = board[r][c];
+                    if(p && ((color === 'w' && p === p.toUpperCase()) || (color === 'b' && p === p.toLowerCase()))) {
+                        for(let tr=0; tr<8; tr++) {
+                            for(let tc=0; tc<8; tc++) {
+                                if(isValidMove(r, c, tr, tc, board)) {
+                                    moves.push({ sr: r, sc: c, tr, tc });
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function aiChessMove() {
+            if(chessGameOver || pendingPromotion) return;
+            
+            let allMoves = getAllLegalMoves('b', chessBoard);
+            if(allMoves.length === 0) {
+                const blackKing = findKing('b', chessBoard);
+                const isCheck = blackKing ? isSquareAttacked(blackKing.r, blackKing.c, 'w', chessBoard) : false;
+                if(isCheck) {
+                    endChessGame('CHECKMATE! WHITE WARS VICTORY!');
+                } else {
+                    endChessGame('STALEMATE! DRAW GAME.');
+                }
+                return;
+            }
+
+            let bestMove = null;
+
+            if(chessDifficulty === 1) {
+                allMoves.sort(() => Math.random() - 0.5);
+                bestMove = allMoves[Math.floor(Math.random() * Math.min(allMoves.length, 5))];
+            } else if(chessDifficulty === 2) {
+                let scored = allMoves.map(m => {
+                    let target = chessBoard[m.tr][m.tc];
+                    let val = target ? ({p:10, n:35, b:35, r:55, q:100, k:1000}[target.toLowerCase()] || 10) : 0;
+                    return { ...m, score: val + Math.random() * 4 };
+                });
+                scored.sort((a,b) => b.score - a.score);
+                bestMove = scored[0];
+            } else if(chessDifficulty === 3) {
+                let bestScore = -Infinity;
+                allMoves.sort(() => Math.random() - 0.5);
+                for(let move of allMoves) {
+                    let backupTarget = chessBoard[move.tr][move.tc];
+                    chessBoard[move.tr][move.tc] = chessBoard[move.sr][move.sc];
+                    chessBoard[move.sr][move.sc] = '';
+
+                    let score = evaluateBoard(chessBoard);
+                    
+                    chessBoard[move.sr][move.sc] = chessBoard[move.tr][move.tc];
+                    chessBoard[move.tr][move.tc] = backupTarget;
+
+                    if(score > bestScore) {
+                        bestScore = score;
+                        bestMove = move;
+                    }
+                }
+            } else if(chessDifficulty === 4) {
+                let bestScore = -Infinity;
+                allMoves.sort(() => Math.random() - 0.5);
+
+                for(let move of allMoves) {
+                    let backupTarget = chessBoard[move.tr][move.tc];
+                    chessBoard[move.tr][move.tc] = chessBoard[move.sr][move.sc];
+                    chessBoard[move.sr][move.sc] = '';
+
+                    let playerCounterMoves = getAllLegalMoves('w', chessBoard);
+                    let minPlayerResponseScore = Infinity;
+
+                    for(let pMove of playerCounterMoves.slice(0, 10)) {
+                        let pBackup = chessBoard[pMove.tr][pMove.tc];
+                        chessBoard[pMove.tr][pMove.tc] = chessBoard[pMove.sr][pMove.sc];
+                        chessBoard[pMove.sr][pMove.sc] = '';
+
+                        let score = evaluateBoard(chessBoard);
+                        if(score < minPlayerResponseScore) minPlayerResponseScore = score;
+
+                        chessBoard[pMove.sr][pMove.sc] = chessBoard[pMove.tr][pMove.tc];
+                        chessBoard[pMove.tr][pMove.tc] = pBackup;
+                    }
+
+                    if(playerCounterMoves.length === 0) minPlayerResponseScore = 9999;
+
+                    chessBoard[move.sr][move.sc] = chessBoard[move.tr][move.tc];
+                    chessBoard[move.tr][move.tc] = backupTarget;
+
+                    if(minPlayerResponseScore > bestScore) {
+                        bestScore = minPlayerResponseScore;
+                        bestMove = move;
+                    }
+                }
+            } else {
+                let bestScore = -Infinity;
+                allMoves.sort(() => Math.random() - 0.5);
+
+                for(let move of allMoves) {
+                    let backupTarget = chessBoard[move.tr][move.tc];
+                    chessBoard[move.tr][move.tc] = chessBoard[move.sr][move.sc];
+                    chessBoard[move.sr][move.sc] = '';
+
+                    let playerCounterMoves = getAllLegalMoves('w', chessBoard);
+                    let worstResponse = Infinity;
+
+                    for(let pMove of playerCounterMoves) {
+                        let pBackup = chessBoard[pMove.tr][pMove.tc];
+                        chessBoard[pMove.tr][pMove.tc] = chessBoard[pMove.sr][pMove.sc];
+                        chessBoard[pMove.sr][pMove.sc] = '';
+
+                        let subMoves = getAllLegalMoves('b', chessBoard);
+                        let bestSubScore = -Infinity;
+                        for(let sMove of subMoves.slice(0, 4)) {
+                            let sBackup = chessBoard[sMove.tr][sMove.tc];
+                            chessBoard[sMove.tr][sMove.tc] = chessBoard[sMove.sr][sMove.sc];
+                            chessBoard[sMove.sr][sMove.sc] = '';
+                            let subEval = evaluateBoard(chessBoard);
+                            if(subEval > bestSubScore) bestSubScore = subEval;
+                            chessBoard[sMove.sr][sMove.sc] = chessBoard[sMove.tr][sMove.tc];
+                            chessBoard[sMove.tr][sMove.tc] = sBackup;
+                        }
+
+                        if(bestSubScore < worstResponse) worstResponse = bestSubScore;
+
+                        chessBoard[pMove.sr][pMove.sc] = chessBoard[pMove.tr][pMove.tc];
+                        chessBoard[pMove.tr][pMove.tc] = pBackup;
+                    }
+
+                    if(playerCounterMoves.length === 0) worstResponse = 99999;
+
+                    chessBoard[move.sr][move.sc] = chessBoard[move.tr][move.tc];
+                    chessBoard[move.tr][move.tc] = backupTarget;
+
+                    if(worstResponse > bestScore) {
+                        bestScore = worstResponse;
+                        bestMove = move;
+                    }
+                }
+            }
+
+            if(bestMove) {
+                animatePieceMove(bestMove.sr, bestMove.sc, bestMove.tr, bestMove.tc, () => {
+                    executeChessMove(bestMove.sr, bestMove.sc, bestMove.tr, bestMove.tc);
+                    chessTurn = 'w';
+                    
+                    let playerMoves = getAllLegalMoves('w', chessBoard);
+                    if(playerMoves.length === 0) {
+                        const whiteKing = findKing('w', chessBoard);
+                        const isCheck = whiteKing ? isSquareAttacked(whiteKing.r, whiteKing.c, 'b', chessBoard) : false;
+                        if(isCheck) {
+                            endChessGame('CHECKMATE! BLACK AI WINS!');
+                        } else {
+                            endChessGame('STALEMATE! DRAW GAME.');
+                        }
+                    }
+                    renderChessBoard();
+                });
+            } else {
+                chessTurn = 'w';
+                renderChessBoard();
+            }
+        }
+
+        /* --- 2. EVENT HORIZON PONG --- */
+        const SoundEngine = (() => {
+            let audioCtx = null;
+            let themeOsc = null;
+            let themeGain = null;
+            let isMuted = false;
+
+            function init() {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            }
+
+            function playSfx(type) {
+                if (isMuted || !audioCtx) return;
+                init();
+                const now = audioCtx.currentTime;
+
+                if (type === 'hit') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.exponentialRampToValueAtTime(110, now + 0.12);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.12);
+                } else if (type === 'click') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(800, now);
+                    osc.frequency.exponentialRampToValueAtTime(300, now + 0.08);
+                    gain.gain.setValueAtTime(0.25, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.08);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'score') {
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, index) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(freq, now + index * 0.06);
+                        gain.gain.setValueAtTime(0.2, now + index * 0.06);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + index * 0.06 + 0.15);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now + index * 0.06);
+                        osc.stop(now + index * 0.06 + 0.15);
+                    });
+                }
+            }
+
+            function toggleThemeSound(enable) {
+                if (!enable) {
+                    if (themeOsc) {
+                        themeOsc.forEach(osc => { try { osc.stop(); } catch(e){} });
+                        themeOsc = null;
+                    }
+                    return;
+                }
+
+                init();
+                if (!themeOsc) {
+                    themeGain = audioCtx.createGain();
+                    themeGain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+
+                    const osc1 = audioCtx.createOscillator();
+                    const osc2 = audioCtx.createOscillator();
+                    osc1.type = 'sine';
+                    osc2.type = 'sawtooth';
+                    osc1.frequency.setValueAtTime(110, audioCtx.currentTime);
+                    osc2.frequency.setValueAtTime(110.5, audioCtx.currentTime);
+
+                    osc1.connect(themeGain);
+                    osc2.connect(themeGain);
+                    themeGain.connect(audioCtx.destination);
+
+                    osc1.start();
+                    osc2.start();
+                    themeOsc = [osc1, osc2];
+                }
+            }
+
+            return {
+                play: playSfx,
+                toggleTheme: toggleThemeSound,
+                init,
+                setMuted: (val) => { isMuted = val; }
+            };
+        })();
+
+        window.playSound = (type) => SoundEngine.play(type);
+
+        function startPongGame(container) {
+            if (window.pongAnimId) {
+                cancelAnimationFrame(window.pongAnimId);
+                window.pongAnimId = null;
+            }
+
+            container.innerHTML = `
+                <div class="relative w-full h-full flex flex-col items-center justify-center p-2 sm:p-4 bg-slate-950 font-mono overflow-hidden select-none touch-none">
+                    <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,240,255,0.08)_0%,transparent_70%)] pointer-events-none"></div>
+                    <div id="audio-start-overlay" class="absolute inset-0 z-20 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center gap-4 cursor-pointer">
+                        <button class="px-6 py-3 bg-cyan-500 text-slate-950 font-black rounded-lg shadow-[0_0_20px_#00f0ff] hover:scale-105 transition-transform text-sm tracking-widest">
+                            TAP TO START GAME
+                        </button>
+                        <span class="text-cyan-400/70 text-xs">Unlocks audio & touch controls</span>
+                    </div>
+
+                    <div class="flex justify-between items-center w-full max-w-xl mb-3 px-4 py-2 bg-slate-900/90 border border-cyan-500/30 rounded-lg shadow-[0_0_15px_rgba(0,240,255,0.15)] text-cyan-400 font-bold tracking-widest text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] text-cyan-600">P1</span>
+                            <span id="pong-p-score" class="text-xl text-cyan-300 drop-shadow-[0_0_8px_#00f0ff]">0</span>
+                        </div>
+                        
+                        <div class="flex items-center gap-3">
+                            <button id="sound-toggle-btn" class="px-2 py-1 bg-cyan-950/80 border border-cyan-500/50 rounded text-[10px] text-cyan-300 hover:bg-cyan-900 transition-colors">
+                                🔊 AUDIO: ON
+                            </button>
+                            <div class="text-[10px] tracking-[0.2em] text-pink-500 font-extrabold hidden sm:block">OVERDRIVE :: PONG</div>
+                        </div>
+
+                        <div class="flex items-center gap-2">
+                            <span id="pong-ai-score" class="text-xl text-pink-400 drop-shadow-[0_0_8px_#ff007f]">0</span>
+                            <span class="text-[10px] text-pink-600">CPU</span>
+                        </div>
+                    </div>
+
+                    <div id="pong-wrapper" class="relative w-full max-w-[600px] aspect-[600/380] rounded-xl overflow-hidden border-2 border-cyan-500/50 shadow-[0_0_30px_rgba(0,240,255,0.2)] bg-black">
+                        <canvas id="pong-canvas" width="600" height="380" class="w-full h-full cursor-none block touch-none"></canvas>
+                    </div>
+
+                    <div class="text-[10px] text-cyan-500/70 mt-2 font-semibold tracking-wider text-center">
+                        TAP OR DRAG SCREEN / USE ARROW KEYS TO MOVE
+                    </div>
+                </div>
+            `;
+
+            const canvas = document.getElementById('pong-canvas');
+            const ctx = canvas.getContext('2d');
+            const soundBtn = document.getElementById('sound-toggle-btn');
+            const overlay = document.getElementById('audio-start-overlay');
+
+            let audioEnabled = true;
+
+            const unlockAudio = () => {
+                SoundEngine.init();
+                SoundEngine.toggleTheme(audioEnabled);
+                if (overlay) overlay.style.display = 'none';
+            };
+
+            if (overlay) {
+                overlay.addEventListener('click', unlockAudio, { once: true });
+                overlay.addEventListener('touchstart', unlockAudio, { once: true });
+            }
+
+            soundBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                audioEnabled = !audioEnabled;
+                SoundEngine.setMuted(!audioEnabled);
+                SoundEngine.toggleTheme(audioEnabled);
+                soundBtn.innerText = audioEnabled ? '🔊 AUDIO: ON' : '🔇 AUDIO: OFF';
+            });
+
+            let pScore = 0, aiScore = 0;
+            const paddleH = 75, paddleW = 10;
+            
+            const pX = 20;
+            const aiX = canvas.width - 20 - paddleW;
+
+            let playerY = canvas.height / 2 - paddleH / 2;
+            let aiY = canvas.height / 2 - paddleH / 2;
+            let keys = {};
+
+            const BASE_SPEED = 4.0;
+            const SPEED_INCREMENT = 0.45;
+            const MAX_SPEED = 14.0;
+
+            let ball = {
+                x: canvas.width / 2,
+                y: canvas.height / 2,
+                vx: BASE_SPEED,
+                vy: 2.5,
+                radius: 8,
+                trail: []
+            };
+
+            let particles = [];
+
+            const triggerSound = (type) => {
+                if (audioEnabled) {
+                    SoundEngine.play(type);
+                }
+            };
+
+            const createExplosion = (x, y, color) => {
+                for (let i = 0; i < 8; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 2.5 + 1;
+                    particles.push({
+                        x, y,
+                        vx: Math.cos(angle) * speed,
+                        vy: Math.sin(angle) * speed,
+                        color,
+                        life: 1,
+                        decay: Math.random() * 0.05 + 0.03
+                    });
+                }
+            };
+
+            const setPaddlePos = (clientY) => {
+                const rect = canvas.getBoundingClientRect();
+                if (!rect.height) return;
+                const scaleY = canvas.height / rect.height;
+                const clientYScaled = (clientY - rect.top) * scaleY;
+                playerY = clientYScaled - paddleH / 2;
+                playerY = Math.max(0, Math.min(canvas.height - paddleH, playerY));
+            };
+
+            const handleMouseMove = (e) => setPaddlePos(e.clientY);
+
+            const handleTouch = (e) => {
+                if (e.touches && e.touches.length > 0) {
+                    e.preventDefault();
+                    setPaddlePos(e.touches[0].clientY);
+                }
+            };
+
+            const handleKeyDown = (e) => { keys[e.key] = true; };
+            const handleKeyUp = (e) => { keys[e.key] = false; };
+
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+            canvas.addEventListener('touchstart', handleTouch, { passive: false });
+            canvas.addEventListener('touchmove', handleTouch, { passive: false });
+
+            const resetBall = (directionToAI) => {
+                ball.x = canvas.width / 2;
+                ball.y = canvas.height / 2;
+                const angle = (Math.random() * 0.4 - 0.2) * Math.PI;
+                ball.vx = (directionToAI ? 1 : -1) * BASE_SPEED * Math.cos(angle);
+                ball.vy = BASE_SPEED * Math.sin(angle);
+                ball.trail = [];
+            };
+
+            function gameLoop() {
+                if (keys['ArrowUp'] || keys['w'] || keys['W']) playerY -= 6;
+                if (keys['ArrowDown'] || keys['s'] || keys['S']) playerY += 6;
+                playerY = Math.max(0, Math.min(canvas.height - paddleH, playerY));
+
+                const aiCenter = aiY + paddleH / 2;
+                let aiTarget = ball.y;
+                if (ball.vx > 0) {
+                    const timeToImpact = (aiX - ball.x) / ball.vx;
+                    aiTarget = ball.y + ball.vy * timeToImpact;
+                }
+
+                const aiSpeed = 3.2 + Math.min(Math.abs(ball.vx) * 0.15, 3.0);
+                if (aiCenter < aiTarget - 5) aiY += aiSpeed;
+                else if (aiCenter > aiTarget + 5) aiY -= aiSpeed;
+                aiY = Math.max(0, Math.min(canvas.height - paddleH, aiY));
+
+                const subSteps = 4;
+                const deltaVx = ball.vx / subSteps;
+                const deltaVy = ball.vy / subSteps;
+
+                for (let step = 0; step < subSteps; step++) {
+                    ball.x += deltaVx;
+                    ball.y += deltaVy;
+
+                    if (ball.y - ball.radius <= 0) {
+                        ball.y = ball.radius;
+                        ball.vy = Math.abs(ball.vy);
+                        createExplosion(ball.x, ball.y, '#00f0ff');
+                        triggerSound('click');
+                        break;
+                    }
+
+                    if (ball.y + ball.radius >= canvas.height) {
+                        ball.y = canvas.height - ball.radius;
+                        ball.vy = -Math.abs(ball.vy);
+                        createExplosion(ball.x, ball.y, '#00f0ff');
+                        triggerSound('click');
+                        break;
+                    }
+
+                    if (
+                        ball.vx < 0 &&
+                        ball.x - ball.radius <= pX + paddleW &&
+                        ball.x + ball.radius >= pX &&
+                        ball.y + ball.radius >= playerY &&
+                        ball.y - ball.radius <= playerY + paddleH
+                    ) {
+                        ball.x = pX + paddleW + ball.radius;
+                        
+                        let currentSpeed = Math.hypot(ball.vx, ball.vy);
+                        let newSpeed = Math.min(currentSpeed + SPEED_INCREMENT, MAX_SPEED);
+
+                        const hitDelta = ball.y - (playerY + paddleH / 2);
+                        ball.vy = (hitDelta / (paddleH / 2)) * (newSpeed * 0.6);
+                        ball.vx = Math.sqrt(Math.max(1, newSpeed * newSpeed - ball.vy * ball.vy));
+
+                        createExplosion(ball.x, ball.y, '#00f0ff');
+                        triggerSound('hit');
+                        break;
+                    }
+
+                    if (
+                        ball.vx > 0 &&
+                        ball.x + ball.radius >= aiX &&
+                        ball.x - ball.radius <= aiX + paddleW &&
+                        ball.y + ball.radius >= aiY &&
+                        ball.y - ball.radius <= aiY + paddleH
+                    ) {
+                        ball.x = aiX - ball.radius;
+                        
+                        let currentSpeed = Math.hypot(ball.vx, ball.vy);
+                        let newSpeed = Math.min(currentSpeed + SPEED_INCREMENT, MAX_SPEED);
+
+                        const hitDelta = ball.y - (aiY + paddleH / 2);
+                        ball.vy = (hitDelta / (paddleH / 2)) * (newSpeed * 0.6);
+                        ball.vx = -Math.sqrt(Math.max(1, newSpeed * newSpeed - ball.vy * ball.vy));
+
+                        createExplosion(ball.x, ball.y, '#ff007f');
+                        triggerSound('hit');
+                        break;
+                    }
+                }
+
+                ball.trail.push({ x: ball.x, y: ball.y });
+                if (ball.trail.length > 6) ball.trail.shift();
+
+                if (ball.x < -10) {
+                    aiScore++;
+                    const aiElem = document.getElementById('pong-ai-score');
+                    if (aiElem) aiElem.innerText = aiScore;
+                    triggerSound('score');
+                    resetBall(true);
+                } else if (ball.x > canvas.width + 10) {
+                    pScore++;
+                    const pElem = document.getElementById('pong-p-score');
+                    if (pElem) pElem.innerText = pScore;
+                    triggerSound('score');
+                    resetBall(false);
+                }
+
+                ctx.fillStyle = '#030712';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.05)';
+                ctx.lineWidth = 1;
+                for (let y = 0; y <= canvas.height; y += 20) {
+                    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+                }
+
+                ctx.strokeStyle = 'rgba(0, 240, 255, 0.2)';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([6, 6]);
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2, 0);
+                ctx.lineTo(canvas.width / 2, canvas.height);
+                ctx.stroke();
+                ctx.setLineDash([]);
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx; p.y += p.vy; p.life -= p.decay;
+                    if (p.life <= 0) { particles.splice(i, 1); continue; }
+                    ctx.fillStyle = p.color; ctx.globalAlpha = p.life;
+                    ctx.fillRect(p.x, p.y, 2, 2);
+                }
+                ctx.globalAlpha = 1.0;
+
+                for (let i = 0; i < ball.trail.length; i++) {
+                    const pt = ball.trail[i];
+                    const ratio = (i + 1) / ball.trail.length;
+                    ctx.fillStyle = `rgba(255, 230, 0, ${ratio * 0.3})`;
+                    ctx.beginPath(); ctx.arc(pt.x, pt.y, ball.radius * ratio, 0, Math.PI * 2); ctx.fill();
+                }
+
+                ctx.shadowBlur = 10; ctx.shadowColor = '#ffe600'; ctx.fillStyle = '#ffe600';
+                ctx.beginPath(); ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2); ctx.fill();
+
+                ctx.shadowBlur = 10; ctx.shadowColor = '#00f0ff'; ctx.fillStyle = '#00f0ff';
+                ctx.fillRect(pX, playerY, paddleW, paddleH);
+
+                ctx.shadowColor = '#ff007f'; ctx.fillStyle = '#ff007f';
+                ctx.fillRect(aiX, aiY, paddleW, paddleH);
+                ctx.shadowBlur = 0;
+
+                window.pongAnimId = requestAnimationFrame(gameLoop);
+            }
+
+            window.pongAnimId = requestAnimationFrame(gameLoop);
+
+            container._cleanup = () => {
+                if (window.pongAnimId) {
+                    cancelAnimationFrame(window.pongAnimId);
+                    window.pongAnimId = null;
+                }
+                SoundEngine.toggleTheme(false);
+                window.removeEventListener('mousemove', handleMouseMove);
+                window.removeEventListener('keydown', handleKeyDown);
+                window.removeEventListener('keyup', handleKeyUp);
+                canvas.removeEventListener('touchstart', handleTouch);
+                canvas.removeEventListener('touchmove', handleTouch);
+            };
+        }
+
+        /* --- 3. SINGULARITY CIPHER --- */
+        let cipherTimerInterval = null;
+        let cipherSecondsLeft = 150;
+        let cipherAnimId = null;
+        let cipherIsLocked = false;
+
+        function startCipherGame(container) {
+            if (cipherAnimId) {
+                cancelAnimationFrame(cipherAnimId);
+                cipherAnimId = null;
+            }
+
+            cipherIsLocked = false;
+            cipherSecondsLeft = 150;
+
+            container.innerHTML = `
+                <div id="cipher-wrapper" class="relative flex flex-col items-center justify-center w-full h-full p-4 z-10 overflow-hidden bg-gradient-to-b from-[#0f0214] via-[#020205] to-[#020914] select-none">
+                    <canvas id="cipher-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-0"></canvas>
+
+                    <div id="cipher-result-overlay" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md hidden transition-all duration-300 p-6 text-center">
+                        <div id="cipher-result-title" class="arcade-font text-3xl md:text-4xl font-black mb-4 tracking-widest leading-tight"></div>
+                        <div id="cipher-result-sub" class="arcade-font text-xs text-cyber-cyan mb-6 tracking-wider"></div>
+                        <button onclick="restartCipherGame()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-cyber-pink to-cyber-yellow text-black font-black arcade-font text-sm hover:scale-105 active:scale-95 transition cursor-pointer shadow-[0_0_25px_rgba(255,0,127,0.8)] border-2 border-white">
+                            PLAY AGAIN 🔄
+                        </button>
+                    </div>
+
+                    <div class="relative z-10 flex flex-col items-center justify-center w-full h-full">
+                        <div class="flex justify-between w-full max-w-sm mb-1 arcade-font text-[10px] text-cyber-cyan">
+                            <span>CIPHER CORE</span>
+                            <span>TIME: <span id="cipher-timer" class="text-cyber-yellow">150</span>s</span>
+                        </div>
+                        <div class="arcade-font text-cyber-pink text-[10px] mb-2 tracking-widest uppercase animate-bounce drop-shadow-[0_0_8px_rgba(255,0,127,0.8)]">⚠️ SINGULARITY OVERLOAD ⚠️</div>
+                        
+                        <div id="cipher-display" class="arcade-font text-3xl tracking-widest text-cyber-yellow bg-black/80 border-2 border-cyber-pink px-8 py-3 rounded-2xl mb-2 shadow-[0_0_25px_rgba(255,0,127,0.4)] transition-all">_ _ _</div>
+                        <div id="cipher-msg" class="text-[10px] text-cyber-pink mb-3 h-6 tracking-widest uppercase arcade-font text-center drop-shadow-[0_0_5px_rgba(255,0,127,0.8)]">INPUT CODES INTO THE GRAV-CORE</div>
+                        
+                        <div class="grid grid-cols-3 gap-2 w-full max-w-xs mb-2">
+                            ${[1, 2, 3, 4, 5, 6, 7, 8, 9, 'C', 0, 'ENTER'].map(n => `
+                                <button onclick="pressCipher('${n}')" class="py-2.5 rounded-xl bg-cyber-purple/20 border border-cyber-cyan/60 text-cyber-cyan arcade-font text-xs hover:bg-cyber-cyan hover:text-black active:scale-95 transition cursor-pointer shadow-[0_0_10px_rgba(0,240,255,0.2)] hover:shadow-[0_0_20px_rgba(0,240,255,0.8)]">${n}</button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            window.secretPass = Math.floor(100 + Math.random() * 900).toString();
+            window.enteredPass = '';
+
+            const canvas = document.getElementById('cipher-canvas');
+            if (canvas) {
+                const ctx = canvas.getContext('2d');
+                let width = (canvas.width = container.clientWidth || 400);
+                let height = (canvas.height = container.clientHeight || 500);
+
+                window.cipherShake = 0;
+                window.cipherParticles = [];
+                window.cipherRings = [];
+
+                const columns = Math.floor(width / 18);
+                const drops = Array.from({ length: columns }, () => Math.random() * -50);
+
+                function triggerBurst(color, count = 20) {
+                    window.cipherRings.push({ r: 10, maxR: 150, color, alpha: 1 });
+                    for (let i = 0; i < count; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const spd = Math.random() * 6 + 2;
+                        window.cipherParticles.push({
+                            x: width / 2,
+                            y: height / 2,
+                            vx: Math.cos(angle) * spd,
+                            vy: Math.sin(angle) * spd,
+                            color,
+                            life: 1,
+                            decay: Math.random() * 0.03 + 0.02,
+                            size: Math.random() * 3 + 1
+                        });
+                    }
+                }
+                window.cipherTriggerBurst = triggerBurst;
+
+                function renderCanvas() {
+                    ctx.save();
+
+                    if (window.cipherShake > 0) {
+                        const rx = (Math.random() - 0.5) * window.cipherShake;
+                        const ry = (Math.random() - 0.5) * window.cipherShake;
+                        ctx.translate(rx, ry);
+                        window.cipherShake *= 0.85;
+                    }
+
+                    ctx.fillStyle = 'rgba(2, 2, 10, 0.25)';
+                    ctx.fillRect(0, 0, width, height);
+
+                    ctx.fillStyle = 'rgba(0, 240, 255, 0.35)';
+                    ctx.font = '10px monospace';
+                    for (let i = 0; i < drops.length; i++) {
+                        const char = String.fromCharCode(0x30a0 + Math.floor(Math.random() * 96));
+                        const x = i * 18;
+                        const y = drops[i] * 18;
+                        ctx.fillText(char, x, y);
+
+                        if (y > height && Math.random() > 0.975) {
+                            drops[i] = 0;
+                        }
+                        drops[i]++;
+                    }
+
+                    for (let i = window.cipherRings.length - 1; i >= 0; i--) {
+                        const ring = window.cipherRings[i];
+                        ring.r += 5;
+                        ring.alpha -= 0.03;
+                        if (ring.alpha <= 0) {
+                            window.cipherRings.splice(i, 1);
+                            continue;
+                        }
+                        ctx.strokeStyle = ring.color;
+                        ctx.globalAlpha = ring.alpha;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(width / 2, height / 2, ring.r, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+
+                    for (let i = window.cipherParticles.length - 1; i >= 0; i--) {
+                        const p = window.cipherParticles[i];
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.life -= p.decay;
+
+                        if (p.life <= 0) {
+                            window.cipherParticles.splice(i, 1);
+                            continue;
+                        }
+
+                        ctx.fillStyle = p.color;
+                        ctx.globalAlpha = p.life;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+
+                    ctx.restore();
+                    cipherAnimId = requestAnimationFrame(renderCanvas);
+                }
+
+                renderCanvas();
+            }
+
+            if (cipherTimerInterval) clearInterval(cipherTimerInterval);
+            cipherTimerInterval = setInterval(() => {
+                if (cipherIsLocked) return;
+
+                cipherSecondsLeft--;
+                let tEl = document.getElementById('cipher-timer');
+                if (tEl) tEl.innerText = cipherSecondsLeft;
+
+                if (cipherSecondsLeft <= 0) {
+                    clearInterval(cipherTimerInterval);
+                    showCipherResult(false, "TIME EXPIRED! SINGULARITY COLLAPSED!");
+                }
+            }, 1000);
+        }
+
+        function showCipherResult(isSuccess, subtitle) {
+            cipherIsLocked = true;
+            if (cipherTimerInterval) clearInterval(cipherTimerInterval);
+
+            const overlay = document.getElementById('cipher-result-overlay');
+            const titleEl = document.getElementById('cipher-result-title');
+            const subEl = document.getElementById('cipher-result-sub');
+
+            if (!overlay || !titleEl || !subEl) return;
+
+            if (isSuccess) {
+                if (typeof playSound === 'function') playSound('score');
+                window.cipherShake = 25;
+                if (window.cipherTriggerBurst) window.cipherTriggerBurst('#00f0ff', 50);
+
+                titleEl.innerText = "CODE CRACKED SUCCESSFULLY!";
+                titleEl.className = "arcade-font text-3xl md:text-4xl font-black mb-4 tracking-widest text-cyan-400 drop-shadow-[0_0_25px_#00f0ff] animate-pulse";
+            } else {
+                if (typeof playSound === 'function') playSound('hit');
+                window.cipherShake = 15;
+                if (window.cipherTriggerBurst) window.cipherTriggerBurst('#ff007f', 30);
+
+                titleEl.innerText = "SORRY: CODE IS NOT CRACKED SUCCESSFULLY!";
+                titleEl.className = "arcade-font text-2xl md:text-3xl font-black mb-4 tracking-widest text-pink-500 drop-shadow-[0_0_25px_#ff007f]";
+            }
+
+            subEl.innerText = `${subtitle} | SECRET CODE WAS: [${window.secretPass}]`;
+            overlay.classList.remove('hidden');
+        }
+
+        function pressCipher(val) {
+            if (cipherIsLocked) return;
+
+            if (typeof playSound === 'function') playSound('click');
+            let msgEl = document.getElementById('cipher-msg');
+            let displayEl = document.getElementById('cipher-display');
+
+            if (val === 'C') {
+                window.enteredPass = '';
+                msgEl.innerText = 'CONTAINMENT PURGED';
+                window.cipherShake = 6;
+                if (window.cipherTriggerBurst) window.cipherTriggerBurst('#ff007f', 15);
+            } else if (val === 'ENTER') {
+                if (window.enteredPass.length !== 3) {
+                    msgEl.innerText = 'ERROR: 3 DIGITS REQUIRED';
+                    if (typeof playSound === 'function') playSound('hit');
+                    window.cipherShake = 8;
+                    return;
+                }
+                let guessNum = parseInt(window.enteredPass);
+                let secretNum = parseInt(window.secretPass);
+
+                if (guessNum === secretNum) {
+                    msgEl.innerText = '🌀 STABILIZED! CODE CRACKED!';
+                    displayEl.classList.add('shadow-[0_0_50px_#00f0ff]', 'border-[#00f0ff]');
+                    showCipherResult(true, `GRAV-CORE STABILIZED IN ${150 - cipherSecondsLeft}s`);
+                } else if (guessNum < secretNum) {
+                    msgEl.innerText = '⬆ GO HIGHER!';
+                    window.enteredPass = '';
+                    if (typeof playSound === 'function') playSound('hit');
+                    window.cipherShake = 10;
+                    if (window.cipherTriggerBurst) window.cipherTriggerBurst('#facc15', 18);
+                } else {
+                    msgEl.innerText = '⬇ GO LOWER!';
+                    window.enteredPass = '';
+                    if (typeof playSound === 'function') playSound('hit');
+                    window.cipherShake = 10;
+                    if (window.cipherTriggerBurst) window.cipherTriggerBurst('#facc15', 18);
+                }
+            } else {
+                if (window.enteredPass.length < 3) {
+                    window.enteredPass += val;
+                    msgEl.innerText = 'VECTOR: ' + window.enteredPass;
+                    if (window.cipherTriggerBurst) window.cipherTriggerBurst('#00f0ff', 6);
+                }
+            }
+
+            let display = window.enteredPass.padEnd(3, '_').split('').join(' ');
+            displayEl.innerText = display;
+        }
+
+        function restartCipherGame() {
+            const targetScreen = document.getElementById('arcade-screen-inner') || document.getElementById('cipher-wrapper')?.parentElement || document.body;
+            startCipherGame(targetScreen);
+        }
+
+        /* --- 4. WORMHOLE SNAKE --- */
+        function startSnakeMenu(container) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center w-full h-full p-4 select-none">
+                    <div class="arcade-font text-sm text-cyber-purple mb-6 text-center">SELECT WORMHOLE SNAKE MODE</div>
+                    <div class="flex flex-col gap-3 w-full max-w-sm">
+                        <button onclick="runSnakeGame('wrap')" class="glass-card p-3 rounded-2xl text-center text-xs font-bold text-white hover:text-cyber-cyan border border-cyber-cyan/40">MODE 1: WARP SCREEN (NO WALLS)</button>
+                        <button onclick="runSnakeGame('solid')" class="glass-card p-3 rounded-2xl text-center text-xs font-bold text-white hover:text-cyber-pink border border-cyber-pink/40">MODE 2: SOLID BOX WALLS</button>
+                        <button onclick="runSnakeGame('maze')" class="glass-card p-3 rounded-2xl text-center text-xs font-bold text-white hover:text-cyber-yellow border border-cyber-yellow/40">MODE 3: OBSTACLE MAZE</button>
+                        <button onclick="runSnakeGame('speed')" class="glass-card p-3 rounded-2xl text-center text-xs font-bold text-white hover:text-emerald-400 border border-emerald-400/40">MODE 4: SPEED HYPERDRIVE (FAST)</button>
+                        <button onclick="runSnakeGame('abyss')" class="glass-card p-3 rounded-2xl text-center text-xs font-bold text-white hover:text-purple-400 border border-purple-400/40">MODE 5: VOID ABYSS (DEEP SPACE)</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function runSnakeGame(mode) {
+            if (typeof playSound === 'function') playSound('click');
+            const container = document.getElementById('fs-game-container') || document.body;
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center w-full h-full p-2 select-none">
+                    <div class="flex justify-between w-full max-w-[400px] mb-2 arcade-font text-xs text-cyber-purple">
+                        <span>SCORE: <span id="snake-score">0</span></span>
+                        <span>HIGH: <span id="snake-highscore">0</span></span>
+                    </div>
+                    <canvas id="snake-canvas" width="400" height="400" class="w-full max-w-[400px] aspect-square border-2 border-cyber-purple/50 rounded-xl bg-black shadow-[0_0_30px_rgba(157,0,255,0.2)] touch-none"></canvas>
+                    <div class="text-[10px] text-gray-400 mt-2">SWIPE SCREEN OR USE ARROW KEYS</div>
+                </div>
+            `;
+            const canvas = document.getElementById('snake-canvas');
+            const ctx = canvas.getContext('2d');
+            let snake = [{x: 10, y: 10}], food = {x: 5, y: 5}, dx = 1, dy = 0, score = 0;
+            let highscore = localStorage.getItem('astro_snake_hi_' + mode) || 0;
+            document.getElementById('snake-highscore').innerText = highscore;
+
+            let gameSpeed = mode === 'speed' ? 65 : 120;
+            let scoreMultiplier = mode === 'speed' ? 20 : 10;
+
+            let obstacles = [];
+            if(mode === 'maze' || mode === 'abyss') {
+                obstacles = [
+                    {x: 5, y: 5}, {x: 6, y: 5}, {x: 7, y: 5},
+                    {x: 12, y: 12}, {x: 12, y: 13}, {x: 12, y: 14},
+                    {x: 3, y: 15}, {x: 4, y: 15}, {x: 15, y: 3}, {x: 15, y: 4}
+                ];
+            }
+
+            function setDirection(newDx, newDy) {
+                if ((newDx !== 0 && dx === 0) || (newDy !== 0 && dy === 0)) {
+                    dx = newDx;
+                    dy = newDy;
+                    if (typeof playSound === 'function') playSound('click');
+                }
+            }
+
+            window.onkeydown = (e) => {
+                if(e.key === 'ArrowUp') { setDirection(0, -1); e.preventDefault(); }
+                if(e.key === 'ArrowDown') { setDirection(0, 1); e.preventDefault(); }
+                if(e.key === 'ArrowLeft') { setDirection(-1, 0); e.preventDefault(); }
+                if(e.key === 'ArrowRight') { setDirection(1, 0); e.preventDefault(); }
+            };
+
+            let touchStartX = 0, touchStartY = 0;
+            window.ontouchstart = (e) => {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            };
+
+            window.ontouchend = (e) => {
+                let touchEndX = e.changedTouches[0].clientX;
+                let touchEndY = e.changedTouches[0].clientY;
+                
+                let diffX = touchEndX - touchStartX;
+                let diffY = touchEndY - touchStartY;
+
+                if (Math.abs(diffX) > 20 || Math.abs(diffY) > 20) {
+                    if (Math.abs(diffX) > Math.abs(diffY)) {
+                        if (diffX > 0) setDirection(1, 0);
+                        else setDirection(-1, 0);
+                    } else {
+                        if (diffY > 0) setDirection(0, 1);
+                        else setDirection(0, -1);
+                    }
+                }
+            };
+
+            function spawnFood() {
+                while(true) {
+                    food = { x: Math.floor(Math.random() * 20), y: Math.floor(Math.random() * 20) };
+                    let collision = snake.some(p => p.x === food.x && p.y === food.y) || obstacles.some(o => o.x === food.x && o.y === food.y);
+                    if(!collision) break;
+                }
+            }
+            spawnFood();
+
+            if (window.activeGameInterval) clearInterval(window.activeGameInterval);
+            window.activeGameInterval = setInterval(() => {
+                let head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+                if(mode === 'wrap') {
+                    if(head.x < 0) head.x = 19;
+                    if(head.x > 19) head.x = 0;
+                    if(head.y < 0) head.y = 19;
+                    if(head.y > 19) head.y = 0;
+                } else {
+                    if(head.x < 0 || head.x > 19 || head.y < 0 || head.y > 19) {
+                        handleGameOver();
+                        return;
+                    }
+                }
+
+                for(let part of snake) {
+                    if(part.x === head.x && part.y === head.y) {
+                        handleGameOver();
+                        return;
+                    }
+                }
+
+                if(mode === 'maze' || mode === 'abyss') {
+                    for(let obs of obstacles) {
+                        if(obs.x === head.x && obs.y === head.y) {
+                            handleGameOver();
+                            return;
+                        }
+                    }
+                }
+
+                snake.unshift(head);
+                if(head.x === food.x && head.y === food.y) {
+                    score += scoreMultiplier;
+                    const scoreEl = document.getElementById('snake-score');
+                    if(scoreEl) scoreEl.innerText = score;
+                    if(score > highscore) {
+                        highscore = score;
+                        localStorage.setItem('astro_snake_hi_' + mode, highscore);
+                        const hiEl = document.getElementById('snake-highscore');
+                        if(hiEl) hiEl.innerText = highscore;
+                    }
+                    if (typeof playSound === 'function') playSound('score');
+                    spawnFood();
+                } else {
+                    snake.pop();
+                }
+
+                ctx.fillStyle = '#020205';
+                ctx.fillRect(0, 0, 400, 400);
+
+                ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+                for(let i=0; i<20; i++) {
+                    ctx.beginPath(); ctx.moveTo(i*20, 0); ctx.lineTo(i*20, 400); ctx.stroke();
+                    ctx.beginPath(); ctx.moveTo(0, i*20); ctx.lineTo(400, i*20); ctx.stroke();
+                }
+
+                if(mode === 'maze' || mode === 'abyss') {
+                    ctx.fillStyle = mode === 'abyss' ? '#a855f7' : '#f4ee01';
+                    obstacles.forEach(obs => {
+                        ctx.fillRect(obs.x*20+1, obs.y*20+1, 18, 18);
+                    });
+                }
+
+                ctx.fillStyle = mode === 'speed' ? '#10b981' : '#ff007f';
+                ctx.fillRect(food.x*20+2, food.y*20+2, 16, 16);
+
+                snake.forEach((p, idx) => {
+                    ctx.fillStyle = idx === 0 ? '#00f0ff' : (mode === 'speed' ? '#047857' : (mode === 'abyss' ? '#a855f7' : '#9d00ff'));
+                    ctx.fillRect(p.x*20+1, p.y*20+1, 18, 18);
+                });
+            }, gameSpeed);
+
+            function handleGameOver() {
+                if (typeof playSound === 'function') playSound('hit');
+                clearInterval(window.activeGameInterval);
+                
+                container.innerHTML = `
+                    <div class="flex items-center justify-center w-full h-full p-4 select-none bg-black/80 backdrop-blur-md rounded-2xl z-20">
+                        <div class="flex flex-col items-center justify-center w-full max-w-[320px] p-6 rounded-2xl bg-black border-2 border-cyber-pink shadow-[0_0_40px_rgba(255,0,127,0.3)]">
+                            <div class="arcade-font text-lg text-cyber-pink mb-2 tracking-widest text-center animate-pulse">YOU CRASHED</div>
+                            <div class="w-12 h-[2px] bg-cyber-pink/50 mb-4"></div>
+                            <div class="arcade-font text-xs text-white mb-6">FINAL SCORE: <span class="text-cyber-cyan">${score}</span></div>
+                            <div class="flex flex-col gap-3 w-full">
+                                <button onclick="runSnakeGame('${mode}')" class="p-3 rounded-xl bg-gradient-to-r from-cyber-purple to-cyber-pink text-white arcade-font text-xs font-bold hover:opacity-90 shadow-lg cursor-pointer transition-all">RETRY MISSION</button>
+                                <button onclick="startSnakeMenu(document.getElementById('fs-game-container') || document.body)" class="p-3 rounded-xl bg-gray-900 border border-cyber-cyan/40 text-cyber-cyan arcade-font text-xs font-bold hover:bg-gray-800 cursor-pointer transition-all">CHANGE MODE</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        /* --- 5. QUANTUM MEMORY CORE --- */
+        function startMemoryGame(container) {
+            if (typeof playSound === 'function') playSound('click');
+            const targetContainer = container || document.getElementById('fs-game-container') || document.body;
+
+            const spaceEmojis = ['🚀', '🛸', '👾', '🪐', '☄️', '🌟', '🌙', '👨‍🚀'];
+            const gameDeck = [...spaceEmojis, ...spaceEmojis].sort(() => Math.random() - 0.5);
+
+            let timeLeft = 50;
+            let timerInterval = null;
+            let flippedCards = [];
+            let matchedPairs = 0;
+            let canFlip = true;
+
+            targetContainer.innerHTML = `
+                <div id="game-wrapper" class="flex flex-col items-center justify-center w-full h-full p-4 select-none relative overflow-hidden rounded-xl border border-indigo-900/50 shadow-2xl" 
+                     style="background: radial-gradient(circle at 50% 30%, #0d061a 0%, #05020a 70%, #000000 100%);">
+                    <canvas id="nebula-canvas" class="absolute inset-0 w-full h-full pointer-events-none opacity-40"></canvas>
+                    
+                    <div class="relative z-10 flex flex-col items-center w-full max-w-sm">
+                        <div class="text-xl font-black text-indigo-400 tracking-wider mb-1 drop-shadow-[0_0_10px_rgba(129,140,248,0.6)]">
+                            🌌 GRAV-CORE MATRIX 🚀
+                        </div>
+                        <div class="text-lg font-mono mb-3 text-cyan-300 drop-shadow">
+                            Time Left: <span id="memory-timer" class="text-amber-400 font-bold">${timeLeft}</span>s
+                        </div>
+                        <div id="memory-board" class="grid grid-cols-4 gap-2.5 w-full"></div>
+                    </div>
+                </div>
+            `;
+
+            const board = targetContainer.querySelector('#memory-board');
+            const timerDisplay = targetContainer.querySelector('#memory-timer');
+            const canvas = targetContainer.querySelector('#nebula-canvas');
+            const ctx = canvas.getContext('2d');
+
+            let animationFrameId;
+            function resizeCanvas() {
+                canvas.width = canvas.offsetWidth;
+                canvas.height = canvas.offsetHeight;
+            }
+            resizeCanvas();
+
+            const particles = Array.from({ length: 35 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2 + 1,
+                speedY: Math.random() * 0.8 + 0.2,
+                opacity: Math.random() * 0.7 + 0.3
+            }));
+
+            function animateNebula() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#818cf8';
+                particles.forEach(p => {
+                    ctx.globalAlpha = p.opacity;
+                    ctx.fillRect(p.x, p.y, p.size, p.size * 3);
+                    p.y += p.speedY;
+                    if (p.y > canvas.height) p.y = 0;
+                });
+                animationFrameId = requestAnimationFrame(animateNebula);
+            }
+            animateNebula();
+
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                if (timerDisplay) timerDisplay.textContent = timeLeft;
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    cancelAnimationFrame(animationFrameId);
+                    endGame(false);
+                }
+            }, 1000);
+
+            gameDeck.forEach((emoji, index) => {
+                const card = document.createElement('button');
+                card.className = 'w-full aspect-square bg-slate-900/90 border-2 border-indigo-900/80 rounded-xl text-2xl sm:text-3xl flex items-center justify-center cursor-pointer transform transition-all duration-200 hover:bg-indigo-950/80 hover:border-indigo-500 active:scale-95 shadow-lg shadow-black/60 backdrop-blur-sm';
+                card.dataset.emoji = emoji;
+                card.dataset.index = index;
+                card.textContent = '';
+
+                card.addEventListener('click', () => handleCardClick(card));
+                board.appendChild(card);
+            });
+
+            function handleCardClick(card) {
+                if (!canFlip || card.classList.contains('flipped') || card.classList.contains('matched')) {
+                    return;
+                }
+
+                if (typeof playSound === 'function') playSound('click');
+
+                card.textContent = card.dataset.emoji;
+                card.classList.add('flipped', 'bg-indigo-950', 'border-cyan-400', 'shadow-[0_0_15px_rgba(34,211,238,0.4)]');
+                card.classList.remove('bg-slate-900/90');
+                flippedCards.push(card);
+
+                if (flippedCards.length === 2) {
+                    checkMatch();
+                }
+            }
+
+            function checkMatch() {
+                canFlip = false;
+                const [card1, card2] = flippedCards;
+
+                if (card1.dataset.emoji === card2.dataset.emoji) {
+                    card1.classList.add('matched', 'opacity-40', 'scale-95');
+                    card2.classList.add('matched', 'opacity-40', 'scale-95');
+                    flippedCards = [];
+                    matchedPairs++;
+                    canFlip = true;
+
+                    if (typeof playSound === 'function') playSound('success');
+
+                    if (matchedPairs === spaceEmojis.length) {
+                        clearInterval(timerInterval);
+                        cancelAnimationFrame(animationFrameId);
+                        endGame(true);
+                    }
+                } else {
+                    if (typeof playSound === 'function') playSound('fail');
+                    setTimeout(() => {
+                        card1.textContent = '';
+                        card2.textContent = '';
+                        card1.classList.remove('flipped', 'bg-indigo-950', 'border-cyan-400', 'shadow-[0_0_15px_rgba(34,211,238,0.4)]');
+                        card1.classList.add('bg-slate-900/90');
+                        card2.classList.remove('flipped', 'bg-indigo-950', 'border-cyan-400', 'shadow-[0_0_15px_rgba(34,211,238,0.4)]');
+                        card2.classList.add('bg-slate-900/90');
+                        flippedCards = [];
+                        canFlip = true;
+                    }, 800);
+                }
+            }
+
+            function endGame(isSuccess) {
+                if (isSuccess) {
+                    if (typeof playSound === 'function') playSound('win');
+                    targetContainer.innerHTML = `
+                        <div class="flex flex-col items-center justify-center w-full h-full p-6 text-center text-white rounded-xl border border-emerald-500/50 shadow-2xl relative overflow-hidden"
+                             style="background: radial-gradient(circle at 50% 30%, #06261a 0%, #030f0a 70%, #000000 100%);">
+                            <div class="text-6xl mb-4 animate-bounce">🌌🚀</div>
+                            <div class="text-2xl font-black text-emerald-400 mb-2 tracking-wide">SUCCESSFULLY COMPLETED!</div>
+                            <p class="text-slate-300 mb-6 font-mono">Grav-core stabilized in ${50 - timeLeft} seconds!</p>
+                            <button onclick="startMemoryGame()" class="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-bold transition shadow-lg shadow-emerald-950 cursor-pointer">Play Again</button>
+                        </div>
+                    `;
+                } else {
+                    if (typeof playSound === 'function') playSound('lose');
+                    targetContainer.innerHTML = `
+                        <div class="flex flex-col items-center justify-center w-full h-full p-6 text-center text-white rounded-xl border border-rose-500/50 shadow-2xl relative overflow-hidden"
+                             style="background: radial-gradient(circle at 50% 30%, #260606 0%, #0f0303 70%, #000000 100%);">
+                            <div class="text-6xl mb-4 animate-pulse">🛸💥</div>
+                            <div class="text-2xl font-black text-rose-500 mb-2 tracking-wide">UNSUCCESSFUL</div>
+                            <p class="text-slate-300 mb-6 font-mono">Core overload! Time ran out.</p>
+                            <button onclick="startMemoryGame()" class="px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl font-bold transition shadow-lg shadow-rose-950 cursor-pointer">Try Again</button>
+                        </div>
+                    `;
+                }
+            }
+        }
+
+       /* --- 6. GRAV-LIFT DRONE --- */
+        window.stopDroneGame = function(container) {
+            if (window.droneAnimId) {
+                cancelAnimationFrame(window.droneAnimId);
+                window.droneAnimId = null;
+            }
+            if (container) {
+                if (container._cleanup) container._cleanup();
+                container.innerHTML = '';
+            }
+        };
+
+        window.startDroneGame = function(container) {
+            if (!container) {
+                window.stopDroneGame();
+                return;
+            }
+
+            window.stopDroneGame(container);
+
+            container.innerHTML = `
+                <div class="relative flex flex-col items-center justify-center w-full h-full p-2 select-none font-mono touch-none bg-slate-950 text-white rounded-xl overflow-hidden">
+                    <div class="flex justify-between items-center w-full max-w-[600px] mb-2 px-4 py-1.5 bg-slate-900/90 border border-purple-500/30 rounded-lg shadow-[0_0_15px_rgba(168,85,247,0.2)] text-xs">
+                        <div class="text-purple-400 font-extrabold tracking-widest animate-pulse text-[10px] sm:text-xs">COSMIC DRONE :: DEEP SPACE</div>
+                        <div class="text-cyan-400 font-bold text-[10px] sm:text-xs">DISTANCE: <span id="drone-dist" class="text-white drop-shadow-[0_0_8px_#00f0ff]">0</span>M</div>
+                    </div>
+
+                    <div id="drone-wrapper" class="relative w-full max-w-[600px] aspect-[600/360] rounded-xl overflow-hidden border-2 border-purple-500/50 shadow-[0_0_30px_rgba(168,85,247,0.3)] bg-black cursor-pointer">
+                        <canvas id="drone-canvas" width="600" height="360" class="w-full h-full block touch-none"></canvas>
+
+                        <div id="drone-game-over" class="hidden absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center z-20 p-4 text-center">
+                            <h2 id="crash-reason" class="text-red-500 text-lg sm:text-2xl font-black tracking-widest mb-1 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">CRASHED!</h2>
+                            <p class="text-cyan-400 text-sm sm:text-base font-bold mb-6">DISTANCE REACHED: <span id="final-dist" class="text-white">0</span>M</p>
+                            <div class="flex gap-3">
+                                <button id="drone-restart-btn" class="px-5 py-2.5 bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs sm:text-sm tracking-wider rounded-lg border border-purple-400 shadow-[0_0_20px_rgba(168,85,247,0.5)] transition-all active:scale-95 cursor-pointer">
+                                    PLAY AGAIN
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-[10px] text-purple-400/80 mt-2 font-semibold tracking-wider flex gap-2 sm:gap-4 text-center">
+                        <span>[TAP & HOLD / SPACE] THRUST</span>
+                        <span>•</span>
+                        <span>CLEAR GAPS AHEAD</span>
+                    </div>
+                </div>
+            `;
+
+            const canvas = container.querySelector('#drone-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+
+            const gameOverOverlay = container.querySelector('#drone-game-over');
+            const crashReasonText = container.querySelector('#crash-reason');
+            const finalDistText = container.querySelector('#final-dist');
+            const restartBtn = container.querySelector('#drone-restart-btn');
+
+            let distance = 0;
+            let isLifting = false;
+            let gameOver = false;
+            let isCleanedUp = false;
+            let screenShake = 0;
+            let speed = 3.2; // Slower initial speed
+            let lastObstacle = 0;
+
+            let drone = {
+                x: 120,
+                y: 180,
+                vy: 0,
+                angle: 0,
+                radius: 9,
+                trail: []
+            };
+
+            let obstacles = [];
+            let particles = [];
+
+            let nebulae = [
+                { x: 100, y: 80, r: 120, color: 'rgba(168, 85, 247, 0.15)' },
+                { x: 450, y: 260, r: 150, color: 'rgba(236, 72, 153, 0.12)' },
+                { x: 300, y: 180, r: 100, color: 'rgba(6, 182, 212, 0.1)' }
+            ];
+
+            let stars = Array.from({ length: 60 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 1.8 + 0.4,
+                speed: Math.random() * 0.5 + 0.1,
+                alpha: Math.random()
+            }));
+
+            const createExplosion = (x, y, color, count = 25) => {
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const spd = Math.random() * 6 + 1.5;
+                    particles.push({
+                        x, y,
+                        vx: Math.cos(angle) * spd,
+                        vy: Math.sin(angle) * spd,
+                        color,
+                        life: 1,
+                        decay: Math.random() * 0.03 + 0.02,
+                        size: Math.random() * 3 + 1
+                    });
+                }
+            };
+
+            const handleDown = (e) => {
+                if (gameOver) {
+                    if (e.code === 'Space') {
+                        e.preventDefault();
+                        restartGame();
+                    }
+                    return;
+                }
+
+                if (e.type === 'keydown' && e.code !== 'Space') return;
+                if (e.code === 'Space') e.preventDefault();
+                if (e.type === 'touchstart') e.preventDefault();
+                isLifting = true;
+            };
+
+            const handleUp = (e) => {
+                if (e.type === 'keyup' && e.code !== 'Space') return;
+                if (e.code === 'Space') e.preventDefault();
+                if (e.type === 'touchend' || e.type === 'touchcancel') e.preventDefault();
+                isLifting = false;
+            };
+
+            const restartGame = () => {
+                cleanup();
+                window.startDroneGame(container);
+            };
+
+            window.addEventListener('mousedown', handleDown);
+            window.addEventListener('mouseup', handleUp);
+            window.addEventListener('keydown', handleDown);
+            window.addEventListener('keyup', handleUp);
+            canvas.addEventListener('touchstart', handleDown, { passive: false });
+            window.addEventListener('touchend', handleUp, { passive: false });
+            window.addEventListener('touchcancel', handleUp, { passive: false });
+            if (restartBtn) restartBtn.addEventListener('click', restartGame);
+
+            function cleanup() {
+                isCleanedUp = true;
+                if (window.droneAnimId) {
+                    cancelAnimationFrame(window.droneAnimId);
+                    window.droneAnimId = null;
+                }
+                window.removeEventListener('mousedown', handleDown);
+                window.removeEventListener('mouseup', handleUp);
+                window.removeEventListener('keydown', handleDown);
+                window.removeEventListener('keyup', handleUp);
+                if (canvas) {
+                    canvas.removeEventListener('touchstart', handleDown);
+                }
+                window.removeEventListener('touchend', handleUp);
+                window.removeEventListener('touchcancel', handleUp);
+            }
+
+            function triggerCrash(reason) {
+                if (gameOver || isCleanedUp) return;
+                gameOver = true;
+
+                screenShake = 16;
+                createExplosion(drone.x, drone.y, '#a855f7', 30);
+                createExplosion(drone.x, drone.y, '#00f0ff', 20);
+
+                setTimeout(() => {
+                    if (!isCleanedUp && container && container.contains(gameOverOverlay)) {
+                        if (crashReasonText) crashReasonText.innerText = `${reason}!`;
+                        if (finalDistText) finalDistText.innerText = Math.floor(distance / 5);
+                        if (gameOverOverlay) gameOverOverlay.classList.remove('hidden');
+                    }
+                }, 150);
+            }
+
+            function gameLoop() {
+                if (gameOver || isCleanedUp) return;
+
+                distance++;
+                const distElem = document.getElementById('drone-dist');
+                if (distElem) distElem.innerText = Math.floor(distance / 5);
+
+                // Gentler speed progression
+                speed = 3.2 + Math.min(3.0, distance * 0.0008);
+
+                if (isLifting) {
+                    drone.vy -= 0.42; // Smoother upward thrust
+                    drone.angle = Math.max(-0.45, drone.angle - 0.06);
+
+                    particles.push({
+                        x: drone.x - 8,
+                        y: drone.y + (Math.random() * 4 - 2),
+                        vx: -speed - Math.random() * 2,
+                        vy: Math.random() * 2 - 1 + drone.vy * 0.2,
+                        color: '#00f0ff',
+                        life: 1,
+                        decay: 0.09,
+                        size: Math.random() * 2.5 + 1
+                    });
+                } else {
+                    drone.vy += 0.32; // Slower, floatier gravity drop
+                    drone.angle = Math.min(0.55, drone.angle + 0.05);
+                }
+
+                drone.vy = Math.max(-6.5, Math.min(6.5, drone.vy));
+                drone.y += drone.vy;
+
+                drone.trail.push({ x: drone.x, y: drone.y });
+                if (drone.trail.length > 8) drone.trail.shift();
+
+                if (drone.y < 10 || drone.y > canvas.height - 10) {
+                    triggerCrash('BOUNDARY COLLISION');
+                    return;
+                }
+
+                // Slower obstacle spawn rate
+                if (Date.now() - lastObstacle > Math.max(1200, 2100 - distance * 0.2)) {
+                    let gap = Math.max(100, 130 - distance * 0.01); // Slightly wider gaps too
+                    let topH = Math.random() * (canvas.height - gap - 60) + 30;
+
+                    obstacles.push({
+                        x: canvas.width,
+                        top: topH,
+                        bottom: topH + gap,
+                        w: 48,
+                        pulse: Math.random() * Math.PI
+                    });
+                    lastObstacle = Date.now();
+                }
+
+                for (let i = obstacles.length - 1; i >= 0; i--) {
+                    const obs = obstacles[i];
+                    obs.x -= speed;
+                    obs.pulse += 0.06;
+
+                    if (drone.x + drone.radius > obs.x && drone.x - drone.radius < obs.x + obs.w) {
+                        if (drone.y - drone.radius < obs.top || drone.y + drone.radius > obs.bottom) {
+                            triggerCrash('ASTEROID BARRIER IMPACT');
+                            return;
+                        }
+                    }
+
+                    if (obs.x + obs.w < 0) obstacles.splice(i, 1);
+                }
+
+                ctx.save();
+
+                if (screenShake > 0) {
+                    const rx = (Math.random() - 0.5) * screenShake;
+                    const ry = (Math.random() - 0.5) * screenShake;
+                    ctx.translate(rx, ry);
+                    screenShake *= 0.85;
+                }
+
+                ctx.fillStyle = '#03020c';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                for (const neb of nebulae) {
+                    let grad = ctx.createRadialGradient(neb.x, neb.y, 5, neb.x, neb.y, neb.r);
+                    grad.addColorStop(0, neb.color);
+                    grad.addColorStop(1, 'transparent');
+                    ctx.fillStyle = grad;
+                    ctx.beginPath();
+                    ctx.arc(neb.x, neb.y, neb.r, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                for (const star of stars) {
+                    star.x -= star.speed;
+                    if (star.x < 0) star.x = canvas.width;
+                    star.alpha += (Math.random() - 0.5) * 0.05;
+                    star.alpha = Math.max(0.2, Math.min(1, star.alpha));
+
+                    ctx.fillStyle = `rgba(255, 255, 255, ${star.alpha})`;
+                    ctx.fillRect(star.x, star.y, star.size, star.size);
+                }
+
+                for (const obs of obstacles) {
+                    const glow = Math.sin(obs.pulse) * 4 + 8;
+                    ctx.shadowBlur = glow;
+                    ctx.shadowColor = '#a855f7';
+
+                    let wallGrad = ctx.createLinearGradient(obs.x, 0, obs.x + obs.w, 0);
+                    wallGrad.addColorStop(0, '#581c87');
+                    wallGrad.addColorStop(0.5, '#a855f7');
+                    wallGrad.addColorStop(1, '#3b0764');
+
+                    ctx.fillStyle = wallGrad;
+                    ctx.fillRect(obs.x, 0, obs.w, obs.top);
+                    ctx.fillRect(obs.x, obs.bottom, obs.w, canvas.height - obs.bottom);
+
+                    ctx.fillStyle = '#00f0ff';
+                    ctx.shadowColor = '#00f0ff';
+                    ctx.shadowBlur = 10;
+                    ctx.fillRect(obs.x - 2, obs.top - 3, obs.w + 4, 3);
+                    ctx.fillRect(obs.x - 2, obs.bottom, obs.w + 4, 3);
+                }
+                ctx.shadowBlur = 0;
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= p.decay;
+
+                    if (p.life <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.globalAlpha = 1.0;
+
+                for (let i = 0; i < drone.trail.length; i++) {
+                    const pt = drone.trail[i];
+                    const ratio = (i + 1) / drone.trail.length;
+                    ctx.fillStyle = `rgba(0, 240, 255, ${ratio * 0.4})`;
+                    ctx.beginPath();
+                    ctx.arc(pt.x, pt.y, drone.radius * ratio * 0.8, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.save();
+                ctx.translate(drone.x, drone.y);
+                ctx.rotate(drone.angle);
+
+                ctx.shadowBlur = 12;
+                ctx.shadowColor = '#00f0ff';
+                ctx.fillStyle = '#00f0ff';
+
+                ctx.beginPath();
+                ctx.moveTo(12, 0);
+                ctx.lineTo(-9, -7);
+                ctx.lineTo(-3, 0);
+                ctx.lineTo(-9, 7);
+                ctx.closePath();
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(2, 0, 2.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+                ctx.restore();
+
+                window.droneAnimId = requestAnimationFrame(gameLoop);
+            }
+
+            container._cleanup = cleanup;
+            window.droneAnimId = requestAnimationFrame(gameLoop);
+        };
+
+        /* --- 7. GRAVITY SPEED CLICKER --- */
+        function startSpeedClickerGame(container) {
+            if (window.clickerAnimId) {
+                cancelAnimationFrame(window.clickerAnimId);
+                window.clickerAnimId = null;
+            }
+
+            let bestClicks = parseInt(localStorage.getItem('astro_clicker_hi')) || 0;
+
+            container.innerHTML = `
+                <div class="relative flex flex-col items-center justify-center w-full h-full p-2 select-none font-mono">
+                    <div class="flex justify-between items-center w-full max-w-[600px] mb-2 px-4 py-2 bg-slate-900/90 border border-yellow-500/40 rounded-lg shadow-[0_0_20px_rgba(234,179,8,0.3)] text-xs">
+                        <div class="text-yellow-400 font-extrabold tracking-widest animate-pulse">⚡ MAD OVERDRIVE CLICKER</div>
+                        <div class="flex gap-6">
+                            <span class="text-cyan-400 font-bold">TIME: <span id="clicker-time" class="text-white text-sm font-black drop-shadow-[0_0_8px_#00f0ff]">15.0</span>S</span>
+                            <span class="text-pink-400 font-bold">HIGH SCORE: <span id="clicker-best" class="text-white text-sm font-black drop-shadow-[0_0_8px_#ff007f]">${bestClicks}</span></span>
+                        </div>
+                    </div>
+
+                    <div id="clicker-wrapper" class="relative rounded-xl overflow-hidden border-2 border-yellow-500/50 shadow-[0_0_35px_rgba(234,179,8,0.25)] bg-black flex items-center justify-center" style="width: 600px; height: 360px;">
+                        <canvas id="clicker-canvas" width="600" height="360" class="w-full h-full block absolute inset-0 pointer-events-none"></canvas>
+
+                        <div class="absolute top-3 left-4 right-4 h-2.5 bg-slate-900/90 rounded-full overflow-hidden border border-yellow-500/40 z-10">
+                            <div id="clicker-combo-bar" class="h-full bg-gradient-to-r from-yellow-500 via-pink-500 to-cyan-400 w-0 transition-all duration-75"></div>
+                        </div>
+
+                        <div class="absolute top-8 left-1/2 -translate-x-1/2 text-center pointer-events-none z-10">
+                            <div class="text-3xl font-black text-white tracking-wider drop-shadow-[0_0_12px_rgba(255,255,255,0.8)]">
+                                CLICKS: <span id="clicker-score" class="text-yellow-400">0</span>
+                            </div>
+                            <div id="clicker-combo-text" class="text-xs font-extrabold text-cyan-400 tracking-widest mt-0.5 opacity-0 transition-opacity">
+                                1x MULTIPLIER
+                            </div>
+                        </div>
+
+                        <button id="clicker-target-btn" class="relative w-32 h-32 rounded-full bg-gradient-to-br from-yellow-400 via-pink-500 to-cyan-400 text-black font-black text-sm flex flex-col items-center justify-center shadow-[0_0_40px_rgba(255,0,127,0.9)] hover:scale-105 active:scale-95 transition-transform cursor-pointer border-4 border-white animate-pulse text-center p-2 uppercase tracking-tighter z-20">
+                            <span id="target-main-text" class="text-base font-black drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]">CLICK ME!</span>
+                            <span id="clicker-frenzy-tag" class="text-[9px] font-extrabold text-white bg-black/80 px-2 py-0.5 rounded-full mt-1 hidden border border-cyan-400 animate-bounce">2X FRENZY!</span>
+                        </button>
+                    </div>
+
+                    <div class="text-[10px] text-yellow-500/80 mt-2 font-semibold tracking-wider flex gap-4">
+                        <span>[CLICK] START 15s TIMER</span>
+                        <span>•</span>
+                        <span>[10+ COMBO] UNLEASH MAD FRENZY</span>
+                    </div>
+                </div>
+            `;
+
+            const canvas = document.getElementById('clicker-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const targetBtn = document.getElementById('clicker-target-btn');
+
+            let clicks = 0;
+            let combo = 0;
+            let comboHeat = 0;
+            let timeLeft = 15.0;
+            let started = false;
+            let gameOver = false;
+            let screenShake = 0;
+
+            let particles = [];
+            let shockwaves = [];
+            let floatingTexts = [];
+
+            let stars = Array.from({ length: 60 }, () => ({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 1.6 + 0.4,
+                speed: Math.random() * 0.6 + 0.2
+            }));
+
+            const triggerSound = (type) => {
+                if (typeof playSound === 'function') playSound(type);
+            };
+
+            const spawnFloatingText = (x, y, text, color = '#facc15') => {
+                floatingTexts.push({
+                    x, y,
+                    text,
+                    color,
+                    vy: -2.5,
+                    alpha: 1,
+                    decay: 0.03
+                });
+            };
+
+            const createParticleBurst = (x, y, color, count = 20) => {
+                shockwaves.push({ x, y, radius: 10, maxRadius: 80, alpha: 1, color });
+                for (let i = 0; i < count; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const spd = Math.random() * 8 + 2;
+                    particles.push({
+                        x, y,
+                        vx: Math.cos(angle) * spd,
+                        vy: Math.sin(angle) * spd,
+                        color,
+                        life: 1,
+                        decay: Math.random() * 0.04 + 0.02,
+                        size: Math.random() * 4 + 1.5
+                    });
+                }
+            };
+
+            targetBtn.onclick = (e) => {
+                if (gameOver) return;
+
+                if (!started) {
+                    started = true;
+                    let lastTime = Date.now();
+                    const timerInterval = setInterval(() => {
+                        if (gameOver || !document.getElementById('clicker-time')) {
+                            clearInterval(timerInterval);
+                            return;
+                        }
+                        const now = Date.now();
+                        const delta = (now - lastTime) / 1000;
+                        lastTime = now;
+
+                        timeLeft -= delta;
+                        const timeEl = document.getElementById('clicker-time');
+                        if (timeEl) timeEl.innerText = Math.max(0, timeLeft).toFixed(1);
+
+                        if (timeLeft <= 0) {
+                            clearInterval(timerInterval);
+                            endGame();
+                        }
+                    }, 50);
+                }
+
+                combo++;
+                comboHeat = 100;
+
+                const isFrenzy = combo >= 10;
+                const pointsGained = isFrenzy ? 2 : 1;
+                clicks += pointsGained;
+
+                const scoreEl = document.getElementById('clicker-score');
+                if (scoreEl) scoreEl.innerText = clicks;
+
+                const rect = canvas.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                screenShake = isFrenzy ? 8 : 4;
+                const color = isFrenzy ? '#00f0ff' : '#facc15';
+                createParticleBurst(clickX, clickY, color, isFrenzy ? 24 : 12);
+                spawnFloatingText(clickX, clickY, `+${pointsGained}`, color);
+
+                triggerSound('click');
+
+                const frenzyTag = document.getElementById('clicker-frenzy-tag');
+                if (isFrenzy) {
+                    if (frenzyTag) frenzyTag.classList.remove('hidden');
+                    targetBtn.classList.add('shadow-[0_0_50px_#00f0ff]', 'border-cyan-400');
+                } else {
+                    if (frenzyTag) frenzyTag.classList.add('hidden');
+                    targetBtn.classList.remove('shadow-[0_0_50px_#00f0ff]', 'border-cyan-400');
+                }
+            };
+
+            function gameLoop() {
+                if (gameOver) return;
+                if (!document.getElementById('clicker-canvas')) {
+                    if (window.clickerAnimId) cancelAnimationFrame(window.clickerAnimId);
+                    return;
+                }
+
+                if (started && comboHeat > 0) {
+                    comboHeat -= 2.0;
+                    if (comboHeat <= 0) {
+                        combo = 0;
+                        comboHeat = 0;
+                        const frenzyTag = document.getElementById('clicker-frenzy-tag');
+                        if (frenzyTag) frenzyTag.classList.add('hidden');
+                        targetBtn.classList.remove('shadow-[0_0_50px_#00f0ff]', 'border-cyan-400');
+                    }
+                }
+
+                const comboBar = document.getElementById('clicker-combo-bar');
+                const comboText = document.getElementById('clicker-combo-text');
+                if (comboBar) comboBar.style.width = `${comboHeat}%`;
+
+                if (comboText) {
+                    if (combo >= 10) {
+                        comboText.innerText = `🔥 FRENZY 2X MULTIPLIER! (${combo} COMBO)`;
+                        comboText.className = 'text-xs font-extrabold text-cyan-400 tracking-widest mt-0.5 opacity-100 animate-pulse';
+                    } else if (combo > 1) {
+                        comboText.innerText = `${combo} COMBO`;
+                        comboText.className = 'text-xs font-extrabold text-yellow-400 tracking-widest mt-0.5 opacity-100';
+                    } else {
+                        comboText.classList.add('opacity-0');
+                    }
+                }
+
+                ctx.save();
+
+                if (screenShake > 0) {
+                    const rx = (Math.random() - 0.5) * screenShake;
+                    const ry = (Math.random() - 0.5) * screenShake;
+                    ctx.translate(rx, ry);
+                    screenShake *= 0.80;
+                }
+
+                ctx.fillStyle = '#03020c';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                for (const star of stars) {
+                    star.x -= star.speed;
+                    if (star.x < 0) star.x = canvas.width;
+                    ctx.fillRect(star.x, star.y, star.size, star.size);
+                }
+
+                for (let i = shockwaves.length - 1; i >= 0; i--) {
+                    const sw = shockwaves[i];
+                    sw.radius += 4;
+                    sw.alpha -= 0.04;
+                    if (sw.alpha <= 0) {
+                        shockwaves.splice(i, 1);
+                        continue;
+                    }
+                    ctx.strokeStyle = sw.color;
+                    ctx.globalAlpha = sw.alpha;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(sw.x, sw.y, sw.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+
+                for (let i = particles.length - 1; i >= 0; i--) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life -= p.decay;
+
+                    if (p.life <= 0) {
+                        particles.splice(i, 1);
+                        continue;
+                    }
+
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                for (let i = floatingTexts.length - 1; i >= 0; i--) {
+                    const ft = floatingTexts[i];
+                    ft.y += ft.vy;
+                    ft.alpha -= ft.decay;
+
+                    if (ft.alpha <= 0) {
+                        floatingTexts.splice(i, 1);
+                        continue;
+                    }
+
+                    ctx.fillStyle = ft.color;
+                    ctx.globalAlpha = ft.alpha;
+                    ctx.font = '900 22px monospace';
+                    ctx.fillText(ft.text, ft.x, ft.y);
+                }
+
+                ctx.restore();
+
+                window.clickerAnimId = requestAnimationFrame(gameLoop);
+            }
+
+            function endGame() {
+                gameOver = true;
+                triggerSound('score');
+
+                let isNewHigh = false;
+                if (clicks > bestClicks) {
+                    bestClicks = clicks;
+                    localStorage.setItem('astro_clicker_hi', bestClicks);
+                    const bestEl = document.getElementById('clicker-best');
+                    if (bestEl) bestEl.innerText = bestClicks;
+                    isNewHigh = true;
+                }
+
+                const cps = (clicks / 15).toFixed(2);
+                setTimeout(() => {
+                    const msg = isNewHigh
+                        ? `🎉 NEW HIGH SCORE! Total Score: ${clicks} (${cps} CPS)`
+                        : `TIME UP! Total Score: ${clicks} (${cps} CPS)\nHigh Score: ${bestClicks}`;
+                    alert(msg);
+                    if (typeof renderActiveGame === 'function') renderActiveGame();
+                }, 100);
+            }
+
+            function cleanup() {
+                if (window.clickerAnimId) {
+                    cancelAnimationFrame(window.clickerAnimId);
+                    window.clickerAnimId = null;
+                }
+            }
+
+            container._cleanup = cleanup;
+            window.clickerAnimId = requestAnimationFrame(gameLoop);
+        }
+
+/* --- 8. GEOMETRY DASH MINI (BALANCED STAIRS & RANDOM GAPS) --- */
+function startGeometryDashGame(container) {
+    container.innerHTML = `
+        <div class="relative flex flex-col items-center justify-center w-full h-full p-2 select-none z-10 rounded-xl overflow-hidden shadow-2xl" style="background: linear-gradient(135deg, #090d1f 0%, #030208 100%);">
+            <div class="flex justify-between w-full max-w-xl mb-2 px-3 text-xs arcade-font text-cyan-400">
+                <span>ATTEMPT: <span id="gd-attempts" class="text-pink-500">1</span></span>
+                <span>SCORE: <span id="gd-score" class="text-yellow-400">0</span></span>
+                <span>BEST: <span id="gd-best" class="text-cyan-300">0</span></span>
+            </div>
+            <div class="relative border-2 border-cyan-400/70 rounded-xl overflow-hidden shadow-[0_0_45px_rgba(0,240,255,0.45)] bg-black">
+                <canvas id="gd-canvas" width="600" height="320" class="block cursor-pointer touch-none"></canvas>
+                
+                <div id="gd-overlay" class="absolute inset-0 bg-gradient-to-b from-blue-950/90 to-black/95 backdrop-blur-md flex flex-col items-center justify-center cursor-pointer p-4">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="arcade-font text-2xl md:text-3xl font-black text-green-400 drop-shadow-[0_0_15px_#22c55e]">GEOMETRY</span>
+                        <span class="arcade-font text-2xl md:text-3xl font-black text-green-400 drop-shadow-[0_0_15px_#22c55e]">DASH</span>
+                    </div>
+                    <div class="arcade-font text-xs text-yellow-400 tracking-widest mb-6 animate-pulse drop-shadow-[0_0_10px_#facc15]">BALANCED STAIRS v9.6</div>
+                    
+                    <div class="relative group transform hover:scale-110 transition duration-300 flex items-center justify-center">
+                        <div class="absolute -inset-3 bg-cyan-400/50 rounded-full blur-lg opacity-75"></div>
+                        <div class="relative w-20 h-20 bg-green-500 border-4 border-cyan-400 rounded-2xl flex items-center justify-center shadow-[0_0_25px_rgba(34,197,94,0.9)]">
+                            <div class="absolute -top-3 w-6 h-6 bg-cyan-400 border-2 border-white rounded-sm"></div>
+                            <div class="absolute -bottom-3 w-6 h-6 bg-cyan-400 border-2 border-white rounded-sm"></div>
+                            <div class="absolute -left-3 w-6 h-6 bg-cyan-400 border-2 border-white rounded-sm"></div>
+                            <div class="absolute -right-3 w-6 h-6 bg-cyan-400 border-2 border-white rounded-sm"></div>
+                            <div class="w-0 h-0 border-t-[14px] border-t-transparent border-l-[24px] border-l-yellow-300 border-b-[14px] border-b-transparent ml-1 drop-shadow-[0_0_8px_#000]"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-[10px] text-cyan-200/70 mt-2 arcade-font tracking-widest">CLICK / SPACE TO JUMP &bull; JUMP ON STAIRS & AVOID UNDERGROUND SPIKES</div>
+        </div>
+    `;
+
+    const canvas = document.getElementById('gd-canvas');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('gd-overlay');
+    const scoreEl = document.getElementById('gd-score');
+    const bestEl = document.getElementById('gd-best');
+    const attemptsEl = document.getElementById('gd-attempts');
+
+    let bestScore = localStorage.getItem('astro_gd_best_v96') || 0;
+    bestEl.innerText = bestScore;
+
+    let gameRunning = false;
+    let attempts = 1;
+    let score = 0;
+
+    const groundY = 260;
+    let player = {
+        x: 90,
+        y: groundY - 28,
+        size: 28,
+        vy: 0,
+        gravity: 0.78,
+        jumpForce: -11.2,
+        isGrounded: true,
+        angle: 0,
+        scaleX: 1,
+        scaleY: 1
+    };
+
+    let obstacles = [];
+    let particles = [];
+    let spawnTimer = 0;
+    let speed = 5.4;
+    let screenShake = 0;
+
+    let bgLayers = [
+        { offset: 0, speed: 0.5, color: '#160d3d', height: 180 },
+        { offset: 0, speed: 1.2, color: '#291357', height: 210 },
+        { offset: 0, speed: 2.2, color: '#43197a', height: 240 }
+    ];
+
+    function triggerJump() {
+        if (!gameRunning) {
+            startGameLoop();
+            return;
+        }
+        if (player.isGrounded) {
+            player.vy = player.jumpForce;
+            player.isGrounded = false;
+            player.scaleX = 0.7;
+            player.scaleY = 1.35;
+            if (typeof playSound === 'function') playSound('jump');
+
+            for (let i = 0; i < 10; i++) {
+                particles.push({
+                    x: player.x + player.size / 2,
+                    y: groundY,
+                    vx: (Math.random() - 0.5) * 5,
+                    vy: -Math.random() * 4 - 1,
+                    color: Math.random() > 0.5 ? '#00f0ff' : '#f4ee01',
+                    life: 20
+                });
+            }
+        }
+    }
+
+    window.onkeydown = (e) => {
+        if (e.key === ' ' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            triggerJump();
+        }
+    };
+
+    canvas.onclick = () => triggerJump();
+    overlay.onclick = () => triggerJump();
+
+    function startGameLoop() {
+        overlay.style.display = 'none';
+        gameRunning = true;
+        score = 0;
+        obstacles = [];
+        particles = [];
+        spawnTimer = 0;
+        player.y = groundY - player.size;
+        player.vy = 0;
+        player.isGrounded = true;
+        player.angle = 0;
+        screenShake = 0;
+
+        if (window.activeGameInterval) clearInterval(window.activeGameInterval);
+
+        window.activeGameInterval = setInterval(() => {
+            player.vy += player.gravity;
+            player.y += player.vy;
+
+            player.scaleX += (1 - player.scaleX) * 0.18;
+            player.scaleY += (1 - player.scaleY) * 0.18;
+
+            let onAnyPlatform = false;
+
+            if (player.y >= groundY - player.size && player.vy >= 0) {
+                player.y = groundY - player.size;
+                onAnyPlatform = true;
+            }
+
+            obstacles.forEach(obs => {
+                if (obs.type === 'platform') {
+                    if (
+                        player.x + player.size > obs.x &&
+                        player.x < obs.x + obs.w &&
+                        player.y + player.size >= obs.y &&
+                        player.y + player.size <= obs.y + 16 &&
+                        player.vy >= 0
+                    ) {
+                        player.y = obs.y - player.size;
+                        onAnyPlatform = true;
+                    }
+                }
+            });
+
+            if (onAnyPlatform) {
+                if (!player.isGrounded) {
+                    player.scaleX = 1.25;
+                    player.scaleY = 0.75;
+                }
+                player.vy = 0;
+                player.isGrounded = true;
+                player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
+            } else {
+                player.isGrounded = false;
+                player.angle += 0.14;
+            }
+
+            if (screenShake > 0.5) screenShake *= 0.85;
+
+            bgLayers.forEach(layer => {
+                layer.offset = (layer.offset + layer.speed) % canvas.width;
+            });
+
+            // Random Spawning with proper spacing gaps
+            spawnTimer++;
+            if (spawnTimer > 65 + Math.random() * 35 - Math.min(score, 15)) {
+                spawnTimer = 0;
+                let rand = Math.random();
+                if (rand > 0.65) {
+                    // Single Spike
+                    obstacles.push({ x: canvas.width + 40, y: groundY - 28, w: 28, h: 28, type: 'spike' });
+                } else if (rand > 0.40) {
+                    // Double Spike
+                    obstacles.push({ x: canvas.width + 40, y: groundY - 28, w: 56, h: 28, type: 'doubleSpike' });
+                } else if (rand > 0.20) {
+                    // Stair Platform with Spikes Underneath
+                    let platX = canvas.width + 40;
+                    let platY = groundY - 65;
+                    let platW = 95;
+                    let platH = 16;
+                    
+                    obstacles.push({ x: platX, y: platY, w: platW, h: platH, type: 'platform' });
+                    obstacles.push({ x: platX + 18, y: groundY - 28, w: 28, h: 28, type: 'spike' });
+                    obstacles.push({ x: platX + 48, y: groundY - 28, w: 28, h: 28, type: 'spike' });
+                } else {
+                    // Saw Blade
+                    obstacles.push({ x: canvas.width + 40, y: groundY - 80, w: 34, h: 34, type: 'saw', angle: 0 });
+                }
+            }
+
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                let obs = obstacles[i];
+                obs.x -= speed;
+                if (obs.type === 'saw') obs.angle += 0.12;
+
+                let hitBoxPadding = 6;
+                if (
+                    player.x + hitBoxPadding < obs.x + obs.w - hitBoxPadding &&
+                    player.x + player.size - hitBoxPadding > obs.x + hitBoxPadding &&
+                    player.y + hitBoxPadding < obs.y + obs.h - hitBoxPadding &&
+                    player.y + player.size - hitBoxPadding > obs.y + hitBoxPadding
+                ) {
+                    if (obs.type === 'platform') {
+                        if (player.x + player.size - hitBoxPadding > obs.x && player.x + hitBoxPadding < obs.x + 10) {
+                            gameOver();
+                            return;
+                        }
+                    } else {
+                        gameOver();
+                        return;
+                    }
+                }
+
+                if (obs.x + obs.w < 0) {
+                    obstacles.splice(i, 1);
+                    score += 10;
+                    scoreEl.innerText = score;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestEl.innerText = bestScore;
+                        localStorage.setItem('astro_gd_best_v96', bestScore);
+                    }
+                }
+            }
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                let p = particles[i];
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life--;
+                if (p.life <= 0) particles.splice(i, 1);
+            }
+
+            ctx.save();
+            if (screenShake > 0.5) {
+                ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+            }
+
+            ctx.fillStyle = '#05020c';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            bgLayers.forEach(layer => {
+                ctx.fillStyle = layer.color;
+                ctx.beginPath();
+                ctx.moveTo(-layer.offset, groundY);
+                for (let x = -layer.offset; x <= canvas.width + layer.offset; x += 60) {
+                    ctx.lineTo(x, groundY - (Math.sin(x * 0.01) * 35 + 20));
+                }
+                ctx.lineTo(canvas.width, groundY);
+                ctx.lineTo(0, groundY);
+                ctx.fill();
+            });
+
+            ctx.fillStyle = '#0b1329';
+            ctx.fillRect(0, groundY, canvas.width, canvas.height - groundY);
+            ctx.fillStyle = '#00f0ff';
+            ctx.fillRect(0, groundY, canvas.width, 4);
+
+            obstacles.forEach(obs => {
+                if (obs.type === 'spike') {
+                    ctx.fillStyle = '#ff0055';
+                    ctx.shadowColor = '#ff0055';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x, groundY);
+                    ctx.lineTo(obs.x + obs.w / 2, groundY - obs.h);
+                    ctx.lineTo(obs.x + obs.w, groundY);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                } else if (obs.type === 'doubleSpike') {
+                    ctx.fillStyle = '#ff0055';
+                    ctx.shadowColor = '#ff0055';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x, groundY);
+                    ctx.lineTo(obs.x + 14, groundY - obs.h);
+                    ctx.lineTo(obs.x + 28, groundY);
+                    ctx.lineTo(obs.x + 42, groundY - obs.h);
+                    ctx.lineTo(obs.x + 56, groundY);
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                } else if (obs.type === 'platform') {
+                    ctx.fillStyle = '#22c55e';
+                    ctx.shadowColor = '#22c55e';
+                    ctx.shadowBlur = 14;
+                    ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                    ctx.shadowBlur = 0;
+                } else if (obs.type === 'saw') {
+                    ctx.save();
+                    ctx.translate(obs.x + obs.w / 2, obs.y + obs.h / 2);
+                    ctx.rotate(obs.angle);
+                    ctx.fillStyle = '#9d00ff';
+                    ctx.shadowColor = '#9d00ff';
+                    ctx.shadowBlur = 16;
+                    ctx.beginPath();
+                    for (let a = 0; a < Math.PI * 2; a += Math.PI / 4) {
+                        ctx.lineTo(Math.cos(a) * 17, Math.sin(a) * 17);
+                        ctx.lineTo(Math.cos(a + Math.PI / 8) * 11, Math.sin(a + Math.PI / 8) * 11);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    ctx.strokeStyle = '#00f0ff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.restore();
+                    ctx.shadowBlur = 0;
+                }
+            });
+
+            particles.forEach(p => {
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, 3, 3);
+            });
+
+            ctx.save();
+            ctx.translate(player.x + player.size / 2, player.y + player.size / 2);
+            ctx.rotate(player.angle);
+            ctx.scale(player.scaleX, player.scaleY);
+
+            ctx.fillStyle = '#f4ee01';
+            ctx.shadowColor = '#f4ee01';
+            ctx.shadowBlur = 18;
+            ctx.fillRect(-player.size / 2, -player.size / 2, player.size, player.size);
+            ctx.strokeStyle = '#00f0ff';
+            ctx.lineWidth = 3.5;
+            ctx.strokeRect(-player.size / 2, -player.size / 2, player.size, player.size);
+            ctx.shadowBlur = 0;
+            
+            ctx.fillStyle = '#020205';
+            ctx.fillRect(-7, -7, 14, 14);
+            ctx.fillStyle = '#ff007f';
+            ctx.fillRect(-3, -3, 6, 6);
+            ctx.restore();
+
+            ctx.restore();
+
+        }, 1000 / 60);
+    }
+
+    function gameOver() {
+        gameRunning = false;
+        clearInterval(window.activeGameInterval);
+        if (typeof playSound === 'function') playSound('hit');
+        screenShake = 12;
+        attempts++;
+        attemptsEl.innerText = attempts;
+
+        for (let i = 0; i < 30; i++) {
+            particles.push({
+                x: player.x + player.size / 2,
+                y: player.y + player.size / 2,
+                vx: (Math.random() - 0.5) * 10,
+                vy: (Math.random() - 0.5) * 10,
+                color: Math.random() > 0.5 ? '#ff0055' : '#f4ee01',
+                life: 35
+            });
+        }
+
+        overlay.innerHTML = `
+            <h2 class="arcade-font text-xl text-pink-500 mb-2 drop-shadow-[0_0_12px_#ff0055]">CRASHED!</h2>
+            <p class="arcade-font text-xs text-white mb-4">FINAL SCORE: <span class="text-yellow-400">${score}</span></p>
+            <div class="relative group transform hover:scale-110 transition duration-300 flex items-center justify-center">
+                <div class="absolute -inset-3 bg-cyan-400/50 rounded-full blur-lg opacity-75"></div>
+                <div class="relative w-20 h-20 bg-green-500 border-4 border-cyan-400 rounded-2xl flex items-center justify-center shadow-[0_0_25px_rgba(34,197,94,0.9)]">
+                    <div class="w-0 h-0 border-t-[14px] border-t-transparent border-l-[24px] border-l-yellow-300 border-b-[14px] border-b-transparent ml-1"></div>
+                </div>
+            </div>
+        `;
+        overlay.style.display = 'flex';
+        overlay.onclick = () => triggerJump();
+    }
+}
+    </script>
+</body>
+</html>
